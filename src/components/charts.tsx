@@ -95,9 +95,12 @@ export function StackedColumns({ months, series, data, marker, markerLabel, heig
                   cum += v
                   return <rect key={s.key} x={cx - bw / 2} y={y1} width={bw} height={Math.max(y0 - y1, 1)} rx={3} fill={s.color} stroke={SURFACE} strokeWidth={2} />
                 })}
-                {totals[i] > 0 && band >= 46 && (
-                  <text x={cx} y={y(totals[i]) - 5} textAnchor="middle" fontSize={11} fill="#d4d4d8">{fmtShort(totals[i])}</text>
-                )}
+                {totals[i] > 0 && band >= 46 && (() => {
+                  // se a linha de referência (renda) passa colada acima da coluna, o total sobe para não ser riscado por ela
+                  const my = marker?.[m] ? y(marker[m]) : null
+                  const ly = my != null && my < y(totals[i]) && y(totals[i]) - my < 22 ? my - 6 : y(totals[i]) - 5
+                  return <text x={cx} y={ly} textAnchor="middle" fontSize={11} fill="#d4d4d8">{fmtShort(totals[i])}</text>
+                })()}
                 {marker?.[m] ? <line x1={cx - bw / 2 - 6} x2={cx + bw / 2 + 6} y1={y(marker[m])} y2={y(marker[m])} stroke="#fafafa" strokeWidth={2} /> : null}
                 {i % labelEvery === 0 && <text x={cx} y={H - 8} textAnchor="middle" fontSize={11} fill={AXIS}>{monthLabel(m)}</text>}
               </g>
