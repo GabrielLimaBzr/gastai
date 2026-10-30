@@ -123,3 +123,13 @@ describe('ledger', () => {
     expect(f).toEqual([{ month: '2026-11', cents: 1000 }, { month: '2026-12', cents: 1000 }, { month: '2027-01', cents: 0 }])
   })
 })
+
+import { bucketBy } from '../src/lib/ledger'
+
+describe('bucketBy', () => {
+  it('agrupa mantendo a ordem', () => {
+    const m = bucketBy([{ k: 'a', n: 1 }, { k: 'b', n: 2 }, { k: 'a', n: 3 }], (x) => x.k)
+    expect(m.get('a')!.map((x) => x.n)).toEqual([1, 3])
+    expect([...m.keys()]).toEqual(['a', 'b'])
+  })
+})

@@ -70,3 +70,15 @@ export function futureInstallments(rows: LedgerRow[], baseMonth: string, horizon
 /** Quanto do total é "cortável" (categorias flexíveis). */
 export const flexibleCents = (slices: Slice[]) =>
   slices.filter((s) => flexOf(s.key) === 'flexible').reduce((a, s) => a + s.cents, 0)
+
+/** Agrupa linhas por chave mantendo a ordem original (base das listas que abrem ao tocar). */
+export function bucketBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> {
+  const m = new Map<string, T[]>()
+  for (const r of rows) {
+    const k = key(r)
+    const list = m.get(k)
+    if (list) list.push(r)
+    else m.set(k, [r])
+  }
+  return m
+}
