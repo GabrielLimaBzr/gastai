@@ -1,26 +1,6 @@
 import { toCents } from './money'
 import type { Tx } from './types'
 
-/** Extrai linhas de texto de um PDF, agrupando itens pela posição vertical. Roda 100% no navegador. */
-export async function pdfToLines(data: ArrayBuffer): Promise<string[]> {
-  // import dinâmico: pdfjs depende de APIs do navegador e não pode rodar no build/SSR
-  const pdfjs = await import('pdfjs-dist')
-  pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
-  const doc = await pdfjs.getDocument({ data }).promise
-  const lines: string[] = []
-  for (let p = 1; p <= doc.numPages; p++) {
-    const content = await (await doc.getPage(p)).getTextContent()
-    const rows = new Map<number, { x: number; s: string }[]>()
-    for (const it of content.items as any[]) {
-      const y = Math.round(it.transform[5])
-      rows.set(y, [...(rows.get(y) ?? []), { x: it.transform[4], s: it.str }])
-    }
-    for (const y of [...rows.keys()].sort((a, b) => b - a))
-      lines.push(rows.get(y)!.sort((a, b) => a.x - b.x).map((i) => i.s).join(' ').replace(/\s+/g, ' ').trim())
-  }
-  return lines
-}
-
 /**
  * Parser genérico: "DD/MM [descrição] [NN/NN] 1.234,56".
  * Cada banco tem layout próprio — ajuste/adicione parsers em PARSERS quando tivermos

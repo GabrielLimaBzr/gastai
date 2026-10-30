@@ -10,3 +10,7 @@ export const brl = (cents: number): string =>
   (cents / 100).toLocaleString('pt-BR', { style: 'currency', currency: 'BRL' })
 
 export const monthKey = (iso: string): string => iso.slice(0, 7)
+
+/** Mês de competência: o da fatura quando existe, senão o da data da compra. */
+export const txMonth = (t: { occurred_on: string; billed_month?: string | null }): string =>
+  monthKey(t.billed_month ?? t.occurred_on)

@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useTransactions } from '@/hooks/useData'
-import { brl, monthKey } from '@/lib/money'
+import { brl, monthKey, txMonth } from '@/lib/money'
 
 export default function Dashboard() {
   const supabase = createClient()
@@ -19,7 +19,7 @@ export default function Dashboard() {
 
   const months = useMemo(() => {
     const spent: Record<string, number> = {}
-    for (const r of rows) spent[monthKey(r.occurred_on)] = (spent[monthKey(r.occurred_on)] ?? 0) + r.amount_cents
+    for (const r of rows) spent[txMonth(r)] = (spent[txMonth(r)] ?? 0) + r.amount_cents
     return Object.keys({ ...spent, ...income }).sort().reverse().map((m) => ({ m, spent: spent[m] ?? 0, inc: income[m] ?? 0 }))
   }, [rows, income])
 

@@ -4,12 +4,24 @@ import { createClient } from '@/lib/supabase/client'
 import { dedupeKey } from '@/lib/dedupe'
 import { parseNotionCsv } from '@/lib/notionCsv'
 import { isNubankCsv, parseNubankCsv } from '@/lib/nubankCsv'
-import { parseGenericInvoice, pdfToLines, sha256Hex } from '@/lib/pdfInvoice'
+import { extractPages } from '@/lib/pdf/extract'
+import { parseInvoice } from '@/lib/pdf'
+import { sha256Hex } from '@/lib/pdfInvoice'
 import { brl } from '@/lib/money'
 import type { Tx } from '@/lib/types'
 
 interface Account { id: string; name: string }
-type Preview = { txs: Tx[]; source: 'pdf' | 'notion'; fileHash?: string; refMonth?: string }
+type Preview = {
+  txs: Tx[]; source: 'pdf' | 'notion'; fileHash?: string
+  bank?: string; billedMonth?: string; declaredTotal?: number | null
+}
+
+/** Nubank: o CSV traz as compras do ciclo; a fatura vence no mês seguinte à última compra. */
+function nextMonth(ym?: string) {
+  if (!ym) return undefined
+  const [y, m] = ym.split('-').map(Number)
+  return m === 12 ? `${y + 1}-01` : `${y}-${String(m + 1).padStart(2, '0')}`
+}
 
 export default function Import() {
   const supabase = createClient()
@@ -37,13 +49,16 @@ export default function Import() {
     setMsg('')
     if (f.name.toLowerCase().endsWith('.pdf')) {
       const buf = await f.arrayBuffer()
-      const txs = parseGenericInvoice(await pdfToLines(buf), year)
-      setPreview({ txs, source: 'pdf', fileHash: await sha256Hex(buf), refMonth: txs[0]?.occurred_on.slice(0, 7) })
-      if (!txs.length) setMsg('Nenhum lançamento reconhecido. O layout deste banco precisa de um parser dedicado.')
+      const parsed = parseInvoice(await extractPages(buf), year)
+      setPreview({
+        txs: parsed.txs, source: 'pdf', fileHash: await sha256Hex(buf), bank: parsed.bank,
+        billedMonth: parsed.dueDate?.slice(0, 7), declaredTotal: parsed.statementTotalCents,
+      })
+      if (!parsed.txs.length) setMsg('Nenhum lançamento reconhecido. O layout deste banco precisa de um parser dedicado.')
     } else {
       const text = await f.text()
       setPreview(isNubankCsv(text)
-        ? { txs: parseNubankCsv(text), source: 'pdf', fileHash: await sha256Hex(new TextEncoder().encode(text).buffer as ArrayBuffer), refMonth: text.match(/\d{4}-\d{2}/)?.[0] }
+        ? { txs: parseNubankCsv(text), source: 'pdf', fileHash: await sha256Hex(new TextEncoder().encode(text).buffer as ArrayBuffer), bank: 'nubank', billedMonth: nextMonth(text.match(/\d{4}-\d{2}/)?.[0]) }
         : { txs: parseNotionCsv(text), source: 'notion' })
     }
   }
@@ -53,8 +68,9 @@ export default function Import() {
     let statementId: string | null = null
     if (preview.source === 'pdf') {
       if (!accountId) return setMsg('Crie/selecione o cartão primeiro.')
+      if (!preview.billedMonth) return setMsg('Informe o mês da fatura.')
       const { data, error } = await supabase.from('statements').insert({
-        account_id: accountId, reference_month: `${preview.refMonth}-01`, file_hash: preview.fileHash,
+        account_id: accountId, reference_month: `${preview.billedMonth}-01`, file_hash: preview.fileHash,
         total_cents: preview.txs.reduce((s, t) => s + t.amount_cents, 0),
       }).select('id').single()
       if (error) return setMsg(error.code === '23505' ? 'Esta fatura já foi importada.' : error.message)
@@ -69,6 +85,7 @@ export default function Import() {
       rows.push({
         occurred_on: t.occurred_on, description: t.description, amount_cents: t.amount_cents,
         installment_no: t.installment_no ?? null, installment_total: t.installment_total ?? null,
+        billed_month: preview.billedMonth ? `${preview.billedMonth}-01` : null,
         account_id: preview.source === 'pdf' ? accountId : null, statement_id: statementId,
         source: preview.source, dedupe_key: await dedupeKey(t, n),
       })
@@ -100,7 +117,7 @@ export default function Import() {
       {msg && <p className="text-sm text-amber-300">{msg}</p>}
       {preview && preview.txs.length > 0 && (
         <div className="card space-y-3">
-          <p className="text-sm">{preview.txs.length} lançamentos · {brl(preview.txs.reduce((s, t) => s + t.amount_cents, 0))}</p>
+          <PreviewHeader p={preview} onMonth={(m) => setPreview({ ...preview, billedMonth: m })} />
           <div className="max-h-64 divide-y divide-zinc-800 overflow-auto text-sm">
             {preview.txs.map((t, i) => (
               <div key={i} className="flex justify-between py-1"><span>{t.occurred_on} {t.description}</span><span>{brl(t.amount_cents)}</span></div>
@@ -108,6 +125,27 @@ export default function Import() {
           </div>
           <button className="btn" onClick={save}>Salvar</button>
         </div>
+      )}
+    </div>
+  )
+}
+
+function PreviewHeader({ p, onMonth }: { p: Preview; onMonth: (m: string) => void }) {
+  const sum = p.txs.reduce((s, t) => s + t.amount_cents, 0)
+  const ok = p.declaredTotal != null && p.declaredTotal === sum
+  return (
+    <div className="space-y-1 text-sm">
+      <p>{p.bank && <span className="mr-2 rounded bg-zinc-800 px-2 py-0.5 text-xs uppercase">{p.bank}</span>}
+        {p.txs.length} lançamentos · {brl(sum)}</p>
+      {p.declaredTotal != null && (
+        <p className={ok ? 'text-emerald-400' : 'text-amber-300'}>
+          {ok ? '✓ Soma confere com o total da fatura' : `⚠ Fatura declara ${brl(p.declaredTotal)} (diferença ${brl(sum - p.declaredTotal)}) — confira antes de salvar`}
+        </p>
+      )}
+      {p.source === 'pdf' && (
+        <label className="flex items-center gap-2 text-zinc-400">Mês da fatura
+          <input type="month" className="input w-auto" value={p.billedMonth ?? ''} onChange={(e) => onMonth(e.target.value)} />
+        </label>
       )}
     </div>
   )

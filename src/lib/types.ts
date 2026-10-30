@@ -7,6 +7,8 @@ export interface Tx {
   account_id?: string | null
   installment_no?: number | null
   installment_total?: number | null
+  /** Mês da fatura (YYYY-MM-01): parcelas antigas contam no mês em que são cobradas. */
+  billed_month?: string | null
 }
 
 export type AnomalyKind = 'duplicate' | 'spike' | 'new_merchant_high' | 'price_change'

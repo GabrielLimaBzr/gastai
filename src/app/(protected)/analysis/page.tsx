@@ -2,7 +2,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import { useTransactions } from '@/hooks/useData'
 import { analyze } from '@/lib/analysis'
-import { brl, monthKey } from '@/lib/money'
+import { brl, txMonth } from '@/lib/money'
 import { createClient } from '@/lib/supabase/client'
 
 const CUT = 0.2 // meta de corte simulada sobre o gasto flexível
@@ -12,7 +12,7 @@ export default function Analysis() {
   const [month, setMonth] = useState('')
   const [income, setIncome] = useState(0)
 
-  const months = useMemo(() => [...new Set(rows.map((r) => monthKey(r.occurred_on)))].sort().reverse(), [rows])
+  const months = useMemo(() => [...new Set(rows.map(txMonth))].sort().reverse(), [rows])
   useEffect(() => { if (!month && months.length) setMonth(months[0]) }, [months, month])
 
   useEffect(() => {
@@ -21,7 +21,7 @@ export default function Analysis() {
       .then(({ data }) => setIncome((data ?? []).reduce((s, r) => s + r.amount_cents, 0)))
   }, [month])
 
-  const a = useMemo(() => analyze(rows.filter((r) => monthKey(r.occurred_on) === month)), [rows, month])
+  const a = useMemo(() => analyze(rows.filter((r) => txMonth(r) === month)), [rows, month])
 
   if (loading) return <p className="text-zinc-500">Carregando…</p>
   if (!months.length) return <p className="text-zinc-400">Importe uma fatura para ver a análise.</p>
