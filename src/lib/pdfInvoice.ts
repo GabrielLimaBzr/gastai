@@ -1,12 +1,11 @@
-import * as pdfjs from 'pdfjs-dist'
-import workerUrl from 'pdfjs-dist/build/pdf.worker.min.mjs?url'
 import { toCents } from './money'
 import type { Tx } from './types'
 
-pdfjs.GlobalWorkerOptions.workerSrc = workerUrl
-
 /** Extrai linhas de texto de um PDF, agrupando itens pela posição vertical. Roda 100% no navegador. */
 export async function pdfToLines(data: ArrayBuffer): Promise<string[]> {
+  // import dinâmico: pdfjs depende de APIs do navegador e não pode rodar no build/SSR
+  const pdfjs = await import('pdfjs-dist')
+  pdfjs.GlobalWorkerOptions.workerSrc = new URL('pdfjs-dist/build/pdf.worker.min.mjs', import.meta.url).toString()
   const doc = await pdfjs.getDocument({ data }).promise
   const lines: string[] = []
   for (let p = 1; p <= doc.numPages; p++) {
