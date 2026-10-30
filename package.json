@@ -1,0 +1,36 @@
+{
+  "name": "gastai",
+  "private": true,
+  "version": "0.1.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vue-tsc --noEmit && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "typecheck": "vue-tsc --noEmit"
+  },
+  "dependencies": {
+    "@primeuix/themes": "^3.1.0",
+    "@supabase/supabase-js": "^2.118.0",
+    "chart.js": "^4.6.1",
+    "papaparse": "^5.7.0",
+    "pdfjs-dist": "^6.4.299",
+    "pinia": "^4.1.0",
+    "primeicons": "^8.0.2",
+    "primevue": "^5.0.4",
+    "vue": "^3.5.44",
+    "vue-router": "^5.4.0"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.3.3",
+    "@types/node": "^26.6.6",
+    "@types/papaparse": "^5.5.2",
+    "@vitejs/plugin-vue": "^6.0.10",
+    "tailwindcss": "^4.3.3",
+    "typescript": "^6.0.3",
+    "vite": "^8.3.5",
+    "vitest": "^5.0.5",
+    "vue-tsc": "^3.3.14"
+  }
+}
