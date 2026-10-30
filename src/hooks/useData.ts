@@ -31,5 +31,5 @@ export function useTransactions() {
   }, [])
 
   useEffect(() => { reload() }, [reload])
-  return { rows, loading, reload }
+  return { rows, setRows, loading, reload }
 }

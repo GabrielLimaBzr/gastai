@@ -1,5 +1,5 @@
 import type { Tx } from './types'
-import { categoryOf, OTHER } from './categorize'
+import { effectiveCategory, flexOf } from './categorize'
 import { merchantOf } from './anomalies'
 
 export interface Slice { name: string; cents: number; count: number; pct: number }
@@ -17,17 +17,16 @@ const rank = (m: Map<string, { cents: number; count: number }>, total: number): 
     .sort((a, b) => b.cents - a.cents)
 
 /** Analisa só gastos (valores positivos). Estornos/pagamentos ficam de fora. */
-export function analyze(txs: Tx[]): Analysis {
+export function analyze(txs: Tx[], chosenName?: (t: Tx) => string | null | undefined): Analysis {
   const spent = txs.filter((t) => t.amount_cents > 0)
   const total = spent.reduce((s, t) => s + t.amount_cents, 0)
   const cats = new Map<string, { cents: number; count: number }>()
-  const flexOf = new Map<string, 'essential' | 'flexible'>()
+  const flexByName = new Map<string, 'essential' | 'flexible'>()
   const merchants = new Map<string, { cents: number; count: number }>()
 
   for (const t of spent) {
-    const c = categoryOf(t.description)
-    const name = c?.name ?? OTHER
-    flexOf.set(name, c?.flex ?? 'flexible')
+    const name = effectiveCategory(t.description, chosenName?.(t))
+    flexByName.set(name, flexOf(name))
     const cur = cats.get(name) ?? { cents: 0, count: 0 }
     cats.set(name, { cents: cur.cents + t.amount_cents, count: cur.count + 1 })
 
@@ -36,7 +35,7 @@ export function analyze(txs: Tx[]): Analysis {
     merchants.set(m, { cents: mc.cents + t.amount_cents, count: mc.count + 1 })
   }
 
-  const byCategory = rank(cats, total).map((s) => ({ ...s, flex: flexOf.get(s.name)! }))
+  const byCategory = rank(cats, total).map((s) => ({ ...s, flex: flexByName.get(s.name)! }))
   return {
     total,
     byCategory,

@@ -4,11 +4,13 @@ import { useTransactions } from '@/hooks/useData'
 import { analyze } from '@/lib/analysis'
 import { brl, txMonth } from '@/lib/money'
 import { createClient } from '@/lib/supabase/client'
+import { useCategories } from '@/hooks/useCategories'
 
 const CUT = 0.2 // meta de corte simulada sobre o gasto flexível
 
 export default function Analysis() {
   const { rows, loading } = useTransactions()
+  const { cats } = useCategories()
   const [month, setMonth] = useState('')
   const [income, setIncome] = useState(0)
 
@@ -21,7 +23,13 @@ export default function Analysis() {
       .then(({ data }) => setIncome((data ?? []).reduce((s, r) => s + r.amount_cents, 0)))
   }, [month])
 
-  const a = useMemo(() => analyze(rows.filter((r) => txMonth(r) === month)), [rows, month])
+  const a = useMemo(() => {
+    const names = new Map(cats.map((c) => [c.id, c.name]))
+    return analyze(rows.filter((r) => txMonth(r) === month), (t) => {
+      const id = (t as { category_id?: string | null }).category_id
+      return id ? names.get(id) : null
+    })
+  }, [rows, month, cats])
 
   if (loading) return <p className="text-zinc-500">Carregando…</p>
   if (!months.length) return <p className="text-zinc-400">Importe uma fatura para ver a análise.</p>

@@ -76,3 +76,22 @@ describe('categorização e análise', () => {
     ])
   })
 })
+
+import { toCsv } from '../src/lib/exportCsv'
+import { effectiveCategory } from '../src/lib/categorize'
+
+describe('categoria editável e exportação', () => {
+  it('escolha do usuário vence a automática', () => {
+    expect(effectiveCategory('IFD*PADARIA', null)).toBe('Delivery e restaurantes')
+    expect(effectiveCategory('IFD*PADARIA', 'Padaria do dia a dia')).toBe('Padaria do dia a dia')
+  })
+  it('análise usa a categoria escolhida', () => {
+    const a = analyze([{ occurred_on: '2026-09-01', description: 'IFD*A', amount_cents: 5000 }], () => 'Trabalho')
+    expect(a.byCategory[0]).toMatchObject({ name: 'Trabalho', flex: 'flexible' })
+  })
+  it('exporta CSV que o próprio app reimporta', () => {
+    const csv = toCsv([{ occurred_on: '2026-09-02', description: 'Loja; "X"', amount_cents: 123456, installment_no: 2, installment_total: 3, billed_month: '2026-10-01', category: 'Compras' }])
+    expect(csv.startsWith('﻿')).toBe(true)
+    expect(parseNotionCsv(csv)[0]).toMatchObject({ description: 'Loja; "X"', amount_cents: 123456, occurred_on: '2026-09-02', category_name: 'Compras' })
+  })
+})

@@ -23,3 +23,12 @@ export function categoryOf(description: string): CategoryDef | null {
   const d = description.toUpperCase()
   return CATEGORIES.find((c) => c.match.test(d)) ?? null
 }
+
+export const DEFAULT_NAMES = [...CATEGORIES.map((c) => c.name), OTHER]
+
+/** Categorias criadas pelo usuário contam como cortáveis até que se diga o contrário. */
+export const flexOf = (name: string): Flex => CATEGORIES.find((c) => c.name === name)?.flex ?? 'flexible'
+
+/** Categoria efetiva: a escolhida pelo usuário vence a automática por palavra-chave. */
+export const effectiveCategory = (description: string, chosen?: string | null): string =>
+  chosen ?? categoryOf(description)?.name ?? OTHER

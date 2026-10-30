@@ -8,6 +8,7 @@ import { extractPages } from '@/lib/pdf/extract'
 import { parseInvoice } from '@/lib/pdf'
 import { sha256Hex } from '@/lib/pdfInvoice'
 import { brl } from '@/lib/money'
+import { useCategories } from '@/hooks/useCategories'
 import type { Tx } from '@/lib/types'
 
 interface Account { id: string; name: string }
@@ -25,6 +26,7 @@ function nextMonth(ym?: string) {
 
 export default function Import() {
   const supabase = createClient()
+  const { ruleFor } = useCategories()
   const [accounts, setAccounts] = useState<Account[]>([])
   const [accountId, setAccountId] = useState('')
   const [newAccount, setNewAccount] = useState('')
@@ -86,6 +88,7 @@ export default function Import() {
         occurred_on: t.occurred_on, description: t.description, amount_cents: t.amount_cents,
         installment_no: t.installment_no ?? null, installment_total: t.installment_total ?? null,
         billed_month: preview.billedMonth ? `${preview.billedMonth}-01` : null,
+        category_id: ruleFor(t.description),
         account_id: preview.source === 'pdf' ? accountId : null, statement_id: statementId,
         source: preview.source, dedupe_key: await dedupeKey(t, n),
       })
