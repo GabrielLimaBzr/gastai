@@ -2,7 +2,6 @@
 import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { merchantOf } from '@/lib/anomalies'
-import { OTHER } from '@/lib/categorize'
 
 export interface Cat { id: string; name: string }
 export interface Rule { pattern: string; category_id: string }
@@ -12,6 +11,7 @@ export function useCategories() {
   const supabase = createClient()
   const [cats, setCats] = useState<Cat[]>([])
   const [rules, setRules] = useState<Rule[]>([])
+  const [ready, setReady] = useState(false)
 
   const load = useCallback(async () => {
     const [c, r] = await Promise.all([
@@ -20,12 +20,12 @@ export function useCategories() {
     ])
     setCats((c.data as Cat[]) ?? [])
     setRules((r.data as Rule[]) ?? [])
+    setReady(true)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => { load() }, [load])
 
-  /** Devolve o id da categoria (criando se não existir); 'Outros' = sem categoria (null). */
-  async function ensure(name: string): Promise<string | null> {
-    if (name === OTHER) return null
+  /** Devolve o id da categoria, criando se não existir. */
+  async function ensure(name: string): Promise<string> {
     const found = cats.find((c) => c.name === name)
     if (found) return found.id
     const { data, error } = await supabase.from('categories').insert({ name }).select('id,name').single()
@@ -48,5 +48,5 @@ export function useCategories() {
     return rules.find((r) => m.includes(r.pattern))?.category_id ?? null
   }
 
-  return { cats, rules, ensure, saveRule, ruleFor }
+  return { cats, rules, ready, ensure, saveRule, ruleFor }
 }

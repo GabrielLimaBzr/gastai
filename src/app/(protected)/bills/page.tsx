@@ -28,7 +28,7 @@ export default function Bills() {
   return (
     <div className="space-y-4">
       <div className="card flex flex-wrap gap-2">
-        <input className="input flex-1" placeholder="Conta (ex: Aluguel)" value={name} onChange={(e) => setName(e.target.value)} />
+        <input className="input min-w-0 basis-full md:basis-0 md:flex-1" placeholder="Conta (ex: Aluguel)" value={name} onChange={(e) => setName(e.target.value)} />
         <input className="input w-32" placeholder="Valor" value={value} onChange={(e) => setValue(e.target.value)} />
         <input className="input w-20" type="number" min={1} max={31} value={day} onChange={(e) => setDay(e.target.value)} />
         <button className="btn" onClick={add}>Adicionar</button>

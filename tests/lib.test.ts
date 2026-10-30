@@ -87,11 +87,39 @@ describe('categoria editável e exportação', () => {
   })
   it('análise usa a categoria escolhida', () => {
     const a = analyze([{ occurred_on: '2026-09-01', description: 'IFD*A', amount_cents: 5000 }], () => 'Trabalho')
-    expect(a.byCategory[0]).toMatchObject({ name: 'Trabalho', flex: 'flexible' })
+    expect(a.byCategory[0]).toMatchObject({ name: 'Trabalho', flex: 'essential' })
   })
   it('exporta CSV que o próprio app reimporta', () => {
     const csv = toCsv([{ occurred_on: '2026-09-02', description: 'Loja; "X"', amount_cents: 123456, installment_no: 2, installment_total: 3, billed_month: '2026-10-01', category: 'Compras' }])
     expect(csv.startsWith('﻿')).toBe(true)
     expect(parseNotionCsv(csv)[0]).toMatchObject({ description: 'Loja; "X"', amount_cents: 123456, occurred_on: '2026-09-02', category_name: 'Compras' })
+  })
+})
+
+import { categorize, futureInstallments, groupSum, addMonths } from '../src/lib/ledger'
+
+describe('ledger', () => {
+  it('distingue confirmada, sugerida e sem categoria', () => {
+    expect(categorize('IFD*X', 'Trabalho')).toEqual({ name: 'Trabalho', state: 'confirmed' })
+    expect(categorize('IFD*X')).toEqual({ name: 'Delivery e restaurantes', state: 'suggested' })
+    expect(categorize('LOJA QUALQUER')).toEqual({ name: 'Outros', state: 'none' })
+  })
+  it('soma por chave', () => {
+    const r = groupSum([{ k: 'a', v: 5 }, { k: 'b', v: 9 }, { k: 'a', v: 7 }], (x) => x.k, (x) => x.v)
+    expect(r).toEqual([{ key: 'a', cents: 12, count: 2 }, { key: 'b', cents: 9, count: 1 }])
+  })
+  it('soma meses atravessando o ano', () => {
+    expect(addMonths('2026-11', 3)).toBe('2027-02')
+    expect(addMonths('2026-01', -1)).toBe('2025-12')
+  })
+  it('projeta parcelas restantes nos meses seguintes', () => {
+    const base = { occurred_on: '2026-08-03', billed_month: '2026-10-01', category_id: null, account_id: null }
+    const rows = [
+      { ...base, id: '1', description: 'A', amount_cents: 1000, installment_no: 2, installment_total: 4 }, // faltam 2
+      { ...base, id: '2', description: 'B', amount_cents: 500, installment_no: 3, installment_total: 3 }, // quitada
+      { ...base, id: '3', description: 'C', amount_cents: 300, installment_no: null, installment_total: null },
+    ]
+    const f = futureInstallments(rows, '2026-10', 3)
+    expect(f).toEqual([{ month: '2026-11', cents: 1000 }, { month: '2026-12', cents: 1000 }, { month: '2027-01', cents: 0 }])
   })
 })

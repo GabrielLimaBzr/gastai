@@ -26,8 +26,8 @@ export function categoryOf(description: string): CategoryDef | null {
 
 export const DEFAULT_NAMES = [...CATEGORIES.map((c) => c.name), OTHER]
 
-/** Categorias criadas pelo usuário contam como cortáveis até que se diga o contrário. */
-export const flexOf = (name: string): Flex => CATEGORIES.find((c) => c.name === name)?.flex ?? 'flexible'
+/** Só o que está mapeado como flexível conta como cortável: "Outros" e categorias novas não prometem economia. */
+export const flexOf = (name: string): Flex => CATEGORIES.find((c) => c.name === name)?.flex ?? 'essential'
 
 /** Categoria efetiva: a escolhida pelo usuário vence a automática por palavra-chave. */
 export const effectiveCategory = (description: string, chosen?: string | null): string =>

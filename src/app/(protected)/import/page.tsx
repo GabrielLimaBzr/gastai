@@ -102,11 +102,11 @@ export default function Import() {
     <div className="space-y-4">
       <div className="card space-y-3">
         <h2 className="font-medium">Cartões</h2>
-        <div className="flex gap-2">
-          <select className="input" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
+        <div className="flex flex-wrap gap-2">
+          <select className="input min-w-0 flex-1" value={accountId} onChange={(e) => setAccountId(e.target.value)}>
             {accounts.map((a) => <option key={a.id} value={a.id}>{a.name}</option>)}
           </select>
-          <input className="input" placeholder="Novo cartão" value={newAccount} onChange={(e) => setNewAccount(e.target.value)} />
+          <input className="input min-w-0 flex-1" placeholder="Novo cartão" value={newAccount} onChange={(e) => setNewAccount(e.target.value)} />
           <button className="btn" onClick={addAccount}>Criar</button>
         </div>
       </div>
@@ -123,7 +123,7 @@ export default function Import() {
           <PreviewHeader p={preview} onMonth={(m) => setPreview({ ...preview, billedMonth: m })} />
           <div className="max-h-64 divide-y divide-zinc-800 overflow-auto text-sm">
             {preview.txs.map((t, i) => (
-              <div key={i} className="flex justify-between py-1"><span>{t.occurred_on} {t.description}</span><span>{brl(t.amount_cents)}</span></div>
+              <div key={i} className="flex justify-between gap-3 py-1"><span className="min-w-0 truncate">{t.occurred_on.slice(5)} {t.description}</span><span className="shrink-0 tabular-nums">{brl(t.amount_cents)}</span></div>
             ))}
           </div>
           <button className="btn" onClick={save}>Salvar</button>

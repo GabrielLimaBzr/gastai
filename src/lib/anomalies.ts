@@ -10,7 +10,7 @@ const std = (a: number[]) => {
 
 /** Remove sufixos de parcela/ruído para agrupar o mesmo estabelecimento. */
 export const merchantOf = (desc: string): string =>
-  normalizeDesc(desc).replace(/\b\d{1,2}\/\d{1,2}\b/g, '').replace(/[^A-Z ]/g, '').trim()
+  normalizeDesc(desc).normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/\b\d{1,2}\/\d{1,2}\b/g, '').replace(/[^A-Z ]/g, '').trim()
 
 export function detectAnomalies(txs: Tx[], opts = { highCents: 30000, zScore: 2.5 }): Anomaly[] {
   const out: Anomaly[] = []
