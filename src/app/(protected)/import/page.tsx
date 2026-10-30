@@ -3,6 +3,7 @@ import { useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { dedupeKey } from '@/lib/dedupe'
 import { parseNotionCsv } from '@/lib/notionCsv'
+import { isNubankCsv, parseNubankCsv } from '@/lib/nubankCsv'
 import { parseGenericInvoice, pdfToLines, sha256Hex } from '@/lib/pdfInvoice'
 import { brl } from '@/lib/money'
 import type { Tx } from '@/lib/types'
@@ -40,7 +41,10 @@ export default function Import() {
       setPreview({ txs, source: 'pdf', fileHash: await sha256Hex(buf), refMonth: txs[0]?.occurred_on.slice(0, 7) })
       if (!txs.length) setMsg('Nenhum lançamento reconhecido. O layout deste banco precisa de um parser dedicado.')
     } else {
-      setPreview({ txs: parseNotionCsv(await f.text()), source: 'notion' })
+      const text = await f.text()
+      setPreview(isNubankCsv(text)
+        ? { txs: parseNubankCsv(text), source: 'pdf', fileHash: await sha256Hex(new TextEncoder().encode(text).buffer as ArrayBuffer), refMonth: text.match(/\d{4}-\d{2}/)?.[0] }
+        : { txs: parseNotionCsv(text), source: 'notion' })
     }
   }
 

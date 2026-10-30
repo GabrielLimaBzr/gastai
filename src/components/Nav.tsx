@@ -5,6 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 
 const LINKS = [
   ['/', 'Resumo'],
+  ['/analysis', 'Análise'],
   ['/transactions', 'Transações'],
   ['/bills', 'Contas fixas'],
   ['/import', 'Importar'],

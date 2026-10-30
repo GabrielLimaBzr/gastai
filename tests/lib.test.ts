@@ -45,3 +45,34 @@ describe('parsers', () => {
     expect(r[0]).toMatchObject({ description: 'Aluguel', amount_cents: 150000, occurred_on: '2026-03-05', category_name: 'Moradia' })
   })
 })
+
+import { categoryOf } from '../src/lib/categorize'
+import { analyze } from '../src/lib/analysis'
+import { parseNubankCsv, isNubankCsv } from '../src/lib/nubankCsv'
+
+describe('categorização e análise', () => {
+  it('categoriza por palavra-chave', () => {
+    expect(categoryOf('IFD*PADARIA X')?.name).toBe('Delivery e restaurantes')
+    expect(categoryOf('DL*UberRidesV')?.name).toBe('Transporte por app')
+    expect(categoryOf('99*')?.name).toBe('Transporte por app')
+    expect(categoryOf('LOJA QUALQUER')).toBeNull()
+  })
+  it('ranqueia categorias e soma o flexível', () => {
+    const a = analyze([
+      { occurred_on: '2026-09-01', description: 'IFD*A', amount_cents: 5000 },
+      { occurred_on: '2026-09-02', description: 'IFD*A', amount_cents: 5000 },
+      { occurred_on: '2026-09-03', description: 'MATEUS SUPERMERCADOS', amount_cents: 20000 },
+      { occurred_on: '2026-09-04', description: 'ESTORNO', amount_cents: -1000 },
+    ])
+    expect(a.total).toBe(30000)
+    expect(a.byCategory[0].name).toBe('Supermercado')
+    expect(a.flexibleTotal).toBe(10000)
+  })
+  it('parseia csv do nubank ignorando pagamento recebido', () => {
+    const csv = 'date,title,amount\n2026-09-02,Pix no Crédito - Fulano - 2/2,"36,64"\n2026-09-02,Pagamento recebido,"- 997,11"\n'
+    expect(isNubankCsv(csv)).toBe(true)
+    expect(parseNubankCsv(csv)).toEqual([
+      { occurred_on: '2026-09-02', description: 'Pix no Crédito - Fulano', amount_cents: 3664, installment_no: 2, installment_total: 2 },
+    ])
+  })
+})
