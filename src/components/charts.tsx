@@ -5,6 +5,8 @@ import { brl } from '@/lib/money'
 /** Cores categóricas em ordem fixa (passo "dark" da paleta validada: CVD e contraste OK sobre fundo escuro). */
 export const SERIES = ['#3987e5', '#d95926', '#199e70', '#c98500', '#d55181', '#008300', '#9085e9', '#e66767']
 export const RANK_BAR = '#3987e5'
+/** Cinza neutro das contas fixas: não é um cartão, então não usa uma cor da série. */
+export const FIXED_COLOR = '#a1a1aa'
 const AXIS = '#71717a'
 const GRID = '#27272a'
 const SURFACE = '#18181b'

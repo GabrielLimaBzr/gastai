@@ -133,3 +133,23 @@ describe('bucketBy', () => {
     expect([...m.keys()]).toEqual(['a', 'b'])
   })
 })
+
+import { endingSchedule, futureDetail } from '../src/lib/ledger'
+
+describe('parcelas futuras detalhadas', () => {
+  const base = { occurred_on: '2026-08-03', billed_month: '2026-10-01', category_id: null, account_id: 'c1' }
+  const rows = [
+    { ...base, id: '1', description: 'BMB', amount_cents: 1000, installment_no: 2, installment_total: 4 },
+    { ...base, id: '2', description: 'LOJA', amount_cents: 300, installment_no: 1, installment_total: 2 },
+    { ...base, id: '3', description: 'QUITADA', amount_cents: 500, installment_no: 3, installment_total: 3 },
+  ]
+  it('lista as compras e o número da parcela em cada mês', () => {
+    const f = futureDetail(rows, '2026-10', 3)
+    expect(f.map((m) => [m.month, m.cents])).toEqual([['2026-11', 1300], ['2026-12', 1000], ['2027-01', 0]])
+    expect(f[0].items.map((i) => [i.row.description, i.no, i.total])).toEqual([['BMB', 3, 4], ['LOJA', 2, 2]])
+  })
+  it('diz quando cada parcelamento termina e quanto falta', () => {
+    const e = endingSchedule(rows, '2026-10')
+    expect(e.map((x) => [x.row.description, x.left, x.endMonth, x.remainingCents])).toEqual([['LOJA', 1, '2026-11', 300], ['BMB', 2, '2026-12', 2000]])
+  })
+})

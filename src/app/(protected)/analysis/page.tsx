@@ -6,7 +6,8 @@ import { useCategories } from '@/hooks/useCategories'
 import { analyze } from '@/lib/analysis'
 import { bucketBy, categorize, groupSum, merchantKey } from '@/lib/ledger'
 import { brl, txMonth } from '@/lib/money'
-import { SERIES, monthLabel } from '@/components/charts'
+import { monthLabel } from '@/components/charts'
+import { cardStyle } from '@/lib/cards'
 import { createClient } from '@/lib/supabase/client'
 
 const CUT = 0.2 // meta de corte simulada sobre o gasto flexível
@@ -103,10 +104,7 @@ export default function Analysis() {
   const chosen = (r: { category_id?: string | null }) => (r.category_id ? catName.get(r.category_id) : null)
 
   // mesma cor de cada cartão do Resumo (ordem de criação)
-  const cardOf: CardOf = (id) => {
-    const i = accounts.findIndex((a) => a.id === id)
-    return i < 0 ? { name: 'Sem cartão', color: '#71717a' } : { name: accounts[i].name, color: SERIES[i % SERIES.length] }
-  }
+  const cardOf: CardOf = (id) => cardStyle(accounts, id)
 
   const view = useMemo(() => {
     const spent = rows.filter((r) => txMonth(r) === month && r.amount_cents > 0)

@@ -4,13 +4,12 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccounts, useTransactions, type TxRow } from '@/hooks/useData'
 import { useCategories } from '@/hooks/useCategories'
-import { HBars, SERIES, StackedColumns, monthLabel, type Series } from '@/components/charts'
+import { FIXED_COLOR, HBars, SERIES, StackedColumns, monthLabel, type Series } from '@/components/charts'
 import { categorize, flexibleCents, futureInstallments, groupSum, merchantKey, monthsDesc, sumCents } from '@/lib/ledger'
 import { brl, monthKey, txMonth } from '@/lib/money'
 
 const NO_CARD = '__none__'
 const FIXED = '__fixed__'
-const FIXED_COLOR = '#a1a1aa' // cinza neutro: não é um cartão, então não usa cor da série
 
 interface Bill { id: string; name: string; expected_cents: number; due_day: number }
 
@@ -235,6 +234,7 @@ export default function Dashboard() {
         <Section title="Parcelas já contratadas" hint={`Compras parceladas da fatura de ${monthLabel(month)} que ainda vão cair: ${brl(futureTotal)} nos próximos 6 meses (considera só o que já está nesta fatura).`}>
           <StackedColumns months={view.future.map((f) => f.month)} series={[{ key: 'p', name: 'Parcelas', color: SERIES[0] }]}
             data={Object.fromEntries(view.future.map((f) => [f.month, { p: f.cents }]))} height={180} />
+          <Link href="/installments" className="mt-2 block text-sm text-emerald-400">Ver o que cai em cada mês →</Link>
         </Section>
       )}
     </div>

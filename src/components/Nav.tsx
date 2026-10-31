@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { BarChart3, CalendarClock, ListOrdered, LogOut, MoreHorizontal, PieChart, TriangleAlert, Upload, X } from 'lucide-react'
+import { BarChart3, CalendarClock, Layers, ListOrdered, LogOut, MoreHorizontal, PieChart, TriangleAlert, Upload, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const MAIN = [
@@ -12,6 +12,7 @@ const MAIN = [
   { href: '/import', label: 'Importar', Icon: Upload },
 ] as const
 const MORE = [
+  { href: '/installments', label: 'Parcelas', Icon: Layers },
   { href: '/bills', label: 'Contas fixas', Icon: CalendarClock },
   { href: '/anomalies', label: 'Anomalias', Icon: TriangleAlert },
 ] as const

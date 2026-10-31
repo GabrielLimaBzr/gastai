@@ -50,21 +50,42 @@ export function addMonths(ym: string, k: number): string {
 
 export const merchantKey = (description: string) => merchantOf(description) || description.toUpperCase()
 
+export interface FutureItem { row: LedgerRow; no: number; total: number; cents: number }
+export interface FutureMonth { month: string; cents: number; items: FutureItem[] }
+
 /**
- * Parcelas que ainda vão cair: para cada compra parcelada da fatura de `baseMonth`,
- * projeta as parcelas restantes (mesmo valor) nos meses seguintes.
+ * O que ainda vai cair: para cada compra parcelada da fatura de `baseMonth`, projeta as parcelas
+ * restantes (mesmo valor) nos meses seguintes, já com o nº de cada parcela. Cada mês vem com a lista
+ * das compras (maiores primeiro).
  */
-export function futureInstallments(rows: LedgerRow[], baseMonth: string, horizon = 6): { month: string; cents: number }[] {
-  const out = new Map<string, number>()
+export function futureDetail(rows: LedgerRow[], baseMonth: string, horizon = 12): FutureMonth[] {
+  const out: FutureMonth[] = Array.from({ length: horizon }, (_, i) => ({ month: addMonths(baseMonth, i + 1), cents: 0, items: [] }))
   for (const r of rows) {
     if (txMonth(r) !== baseMonth || !r.installment_total || !r.installment_no || r.amount_cents <= 0) continue
     const left = r.installment_total - r.installment_no
     for (let k = 1; k <= left && k <= horizon; k++) {
-      const m = addMonths(baseMonth, k)
-      out.set(m, (out.get(m) ?? 0) + r.amount_cents)
+      out[k - 1].items.push({ row: r, no: r.installment_no + k, total: r.installment_total, cents: r.amount_cents })
+      out[k - 1].cents += r.amount_cents
     }
   }
-  return Array.from({ length: horizon }, (_, i) => addMonths(baseMonth, i + 1)).map((month) => ({ month, cents: out.get(month) ?? 0 }))
+  for (const m of out) m.items.sort((a, b) => b.cents - a.cents)
+  return out
+}
+
+export const futureInstallments = (rows: LedgerRow[], baseMonth: string, horizon = 6): { month: string; cents: number }[] =>
+  futureDetail(rows, baseMonth, horizon).map(({ month, cents }) => ({ month, cents }))
+
+export interface EndingItem { row: LedgerRow; left: number; endMonth: string; remainingCents: number }
+
+/** Cada parcelamento em andamento: quantas parcelas faltam, quando termina e quanto ainda será pago. */
+export function endingSchedule(rows: LedgerRow[], baseMonth: string): EndingItem[] {
+  const out: EndingItem[] = []
+  for (const r of rows) {
+    if (txMonth(r) !== baseMonth || !r.installment_total || !r.installment_no || r.amount_cents <= 0) continue
+    const left = r.installment_total - r.installment_no
+    if (left > 0) out.push({ row: r, left, endMonth: addMonths(baseMonth, left), remainingCents: left * r.amount_cents })
+  }
+  return out.sort((a, b) => a.endMonth.localeCompare(b.endMonth) || b.remainingCents - a.remainingCents)
 }
 
 /** Quanto do total é "cortável" (categorias flexíveis). */
