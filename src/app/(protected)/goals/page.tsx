@@ -4,6 +4,7 @@ import { AlertTriangle, CheckCircle2, OctagonX, Trash2 } from 'lucide-react'
 import { useTransactions } from '@/hooks/useData'
 import { useCategories } from '@/hooks/useCategories'
 import { monthLabel } from '@/components/charts'
+import { palette } from '@/lib/palette'
 import { DEFAULT_NAMES } from '@/lib/categorize'
 import { categorize, monthsDesc } from '@/lib/ledger'
 import { goalStatus, suggestGoal, type GoalState } from '@/lib/goals'
@@ -11,12 +12,14 @@ import { categoryByMonth, categorySeries } from '@/lib/trends'
 import { brl, toCents, toInput } from '@/lib/money'
 import { useSharedMonth } from '@/contexts/month'
 import { friendlyError } from '@/lib/errors'
+import { PageSkeleton } from '@/components/ui'
+import { MonthSwitcher, PageHeader } from '@/components/ui'
 
 // estado = ícone + palavra + cor (nunca só a cor)
-const LOOK: Record<GoalState, { label: string; bar: string; text: string; Icon: typeof CheckCircle2 }> = {
-  ok: { label: 'Dentro da meta', bar: '#199e70', text: 'text-emerald-400', Icon: CheckCircle2 },
-  near: { label: 'Perto do limite', bar: '#c98500', text: 'text-amber-400', Icon: AlertTriangle },
-  over: { label: 'Passou da meta', bar: '#c90c27', text: 'text-red-400', Icon: OctagonX },
+const LOOK: Record<GoalState, { label: string; bar: GoalState; text: string; Icon: typeof CheckCircle2 }> = {
+  ok: { label: 'Dentro da meta', bar: 'ok', text: 'text-emerald-400', Icon: CheckCircle2 },
+  near: { label: 'Perto do limite', bar: 'near', text: 'text-amber-400', Icon: AlertTriangle },
+  over: { label: 'Passou da meta', bar: 'over', text: 'text-red-400', Icon: OctagonX },
 }
 
 export default function Goals() {
@@ -56,19 +59,12 @@ export default function Goals() {
     if (cents > 0) await save(n, cents)
   }
 
-  if (loading || !ready) return <p className="text-zinc-500">Carregando…</p>
+  if (loading || !ready) return <PageSkeleton />
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Metas</h1>
-        {months.length > 0 && (
-          <select className="input w-auto" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Mês da fatura">
-            {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-          </select>
-        )}
-      </div>
-      <p className="text-sm text-zinc-500">Defina um limite mensal por categoria e acompanhe quanto já foi usado em cada fatura.</p>
+      <PageHeader title="Metas" description="Defina um limite mensal por categoria e acompanhe quanto já foi usado em cada fatura."
+        actions={months.length > 0 ? <MonthSwitcher value={month} onChange={setMonth} options={months} label="Mês da fatura" /> : undefined} />
       {msg && <p className="text-sm text-emerald-400" role="status">{msg}</p>}
 
       {!withGoal.length ? (
@@ -90,7 +86,7 @@ export default function Goals() {
                   </span>
                 </div>
                 <div className="relative mt-2 h-2 rounded-full bg-zinc-800" role="progressbar" aria-valuenow={Math.round(st.pct * 100)} aria-valuemin={0} aria-valuemax={100} aria-label={`${c.name}: ${Math.round(st.pct * 100)}% da meta`}>
-                  <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(st.pct, 1) * 100}%`, background: look.bar }} />
+                  <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${Math.min(st.pct, 1) * 100}%`, background: palette().goal[look.bar] }} />
                 </div>
                 <div className="mt-3 flex gap-2">
                   <button className="btn-ghost" onClick={() => edit(c.name, goal)}>Editar meta</button>

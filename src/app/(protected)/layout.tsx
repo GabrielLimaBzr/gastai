@@ -1,6 +1,6 @@
 import { redirect } from 'next/navigation'
 import { createClient } from '@/lib/supabase/server'
-import { Nav } from '@/components/Nav'
+import { AppShell } from '@/components/AppShell'
 import { MonthProvider } from '@/contexts/month'
 
 export default async function ProtectedLayout({ children }: { children: React.ReactNode }) {
@@ -9,11 +9,8 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   if (!user) redirect('/login')
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:py-6 md:pb-6">
-      <MonthProvider>
-        <Nav email={user.email} />
-        {children}
-      </MonthProvider>
-    </div>
+    <MonthProvider>
+      <AppShell email={user.email}>{children}</AppShell>
+    </MonthProvider>
   )
 }

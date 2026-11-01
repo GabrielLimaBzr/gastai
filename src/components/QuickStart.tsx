@@ -8,7 +8,7 @@ import { buildSteps, progress, type Step } from '@/lib/onboarding'
 function StepRow({ s, isNext }: { s: Step; isNext: boolean }) {
   return (
     <li className={`flex items-start gap-3 py-2.5 ${isNext ? 'rounded-lg bg-emerald-500/5 px-2' : ''}`}>
-      <span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border-2 ${s.done ? 'border-emerald-500 bg-emerald-500 text-zinc-950' : isNext ? 'border-emerald-400' : 'border-zinc-600'}`} aria-hidden>
+      <span className={`mt-0.5 grid size-6 shrink-0 place-items-center rounded-full border-2 ${s.done ? 'border-emerald-500 bg-emerald-500 text-on-accent' : isNext ? 'border-emerald-400' : 'border-zinc-600'}`} aria-hidden>
         {s.done && <Check size={14} strokeWidth={3} />}
       </span>
       <span className="min-w-0 flex-1">
@@ -36,10 +36,10 @@ export function QuickStart({ page = false, force = false, listOnly = false }: { 
   const steps = buildSteps(facts)
   const p = progress(steps)
 
-  // no Resumo o cartão some sozinho quando o essencial está pronto; os opcionais continuam em Mais → Primeiros passos
+  // no Resumo o cartão some sozinho quando o essencial está pronto; os opcionais continuam na tela Primeiros passos
   if (!page && p.essentialsDone) return null
   if (!page && hidden && !force) {
-    return justHid ? <p className="text-center text-xs text-zinc-500" role="status">Guia dispensado. Para rever, abra Mais → Primeiros passos.</p> : null
+    return justHid ? <p className="text-center text-xs text-zinc-500" role="status">Guia dispensado. Para rever, abra o menu Mais e escolha Primeiros passos.</p> : null
   }
 
   const pct = Math.round((p.done / p.total) * 100)
@@ -54,7 +54,7 @@ export function QuickStart({ page = false, force = false, listOnly = false }: { 
           </div>
         </div>
         {!page && (
-          <button type="button" onClick={() => { setHidden(true); setJustHid(true) }} aria-label="Dispensar o guia de primeiros passos" title="Dispensar (dá para rever em Mais → Primeiros passos)"
+          <button type="button" onClick={() => { setHidden(true); setJustHid(true) }} aria-label="Dispensar o guia de primeiros passos" title="Dispensar (dá para rever no menu Mais, em Primeiros passos)"
             className="grid size-8 place-items-center rounded-lg text-zinc-500 hover:bg-zinc-800 hover:text-zinc-200"><X size={18} aria-hidden /></button>
         )}
       </div>
@@ -70,7 +70,7 @@ export function QuickStart({ page = false, force = false, listOnly = false }: { 
         <>
           {p.next && (
             <div className="mt-3 rounded-lg bg-emerald-500/5 p-3">
-              <p className="text-xs uppercase tracking-wide text-emerald-400">Próximo passo</p>
+              <p className="text-xs font-medium text-emerald-400">Próximo passo</p>
               <p className="mt-0.5 font-medium">{p.next.title}</p>
               <p className="mt-0.5 text-sm text-zinc-400">{p.next.why}</p>
               <Link href={p.next.href} className="btn mt-3">{p.next.cta} <ArrowRight size={16} aria-hidden /></Link>

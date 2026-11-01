@@ -1,4 +1,5 @@
 import { QuickStart } from '@/components/QuickStart'
+import { PageHeader } from '@/components/ui'
 
 const TIPS: { title: string; text: string }[] = [
   { title: 'Cada fatura conta no mês em que vence', text: 'Compras de setembro numa fatura que vence em outubro ficam em outubro. Assim o gráfico mostra o que você realmente pagou em cada mês.' },
@@ -12,8 +13,7 @@ const TIPS: { title: string; text: string }[] = [
 export default function StartPage() {
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Primeiros passos</h1>
-      <p className="text-sm text-zinc-400">Um roteiro para configurar o app no seu ritmo. Os passos se marcam sozinhos conforme você usa, e você pode pular qualquer um.</p>
+      <PageHeader title="Primeiros passos" description="Um roteiro para configurar o app no seu ritmo. Os passos se marcam sozinhos conforme você usa, e você pode pular qualquer um." />
       <QuickStart page />
       <section className="card">
         <h2 className="font-medium">Dicas rápidas</h2>

@@ -10,6 +10,8 @@ import { monthLabel } from '@/components/charts'
 import { cardStyle } from '@/lib/cards'
 import { createClient } from '@/lib/supabase/client'
 import { useSharedMonth } from '@/contexts/month'
+import { PageSkeleton } from '@/components/ui'
+import { MonthSwitcher, PageHeader } from '@/components/ui'
 
 const CUT = 0.2 // meta de corte simulada sobre o gasto flexível
 
@@ -115,19 +117,14 @@ export default function Analysis() {
     return { a, byCategory, byMerchant, top }
   }, [rows, month, catName]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading || !ready) return <p className="text-zinc-500">Carregando…</p>
+  if (loading || !ready) return <PageSkeleton />
   if (!months.length) return <p className="text-zinc-400">Importe uma fatura para ver a análise.</p>
 
   const { a } = view
   const saving = Math.round(a.flexibleTotal * CUT)
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Para onde vai o dinheiro</h1>
-        <select className="input w-auto" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Mês da fatura">
-          {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-        </select>
-      </div>
+      <PageHeader title="Análise" description="Para onde vai o dinheiro: toque numa linha para ver as compras." actions={<MonthSwitcher value={month} onChange={setMonth} options={months} label="Mês da fatura" />} />
 
       <div className="card">
         <p className="text-sm text-zinc-400">Total no mês</p>

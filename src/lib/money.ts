@@ -17,3 +17,10 @@ export const txMonth = (t: { occurred_on: string; billed_month?: string | null }
 
 /** Valor para preencher um campo de texto em pt-BR: 71240 → "712,40". */
 export const toInput = (cents: number): string => (cents / 100).toFixed(2).replace('.', ',')
+
+const MESES = ['janeiro', 'fevereiro', 'março', 'abril', 'maio', 'junho', 'julho', 'agosto', 'setembro', 'outubro', 'novembro', 'dezembro']
+/** "2026-10" → "outubro" (ou "outubro de 2026" com `withYear`). */
+export const monthName = (ym: string, withYear = false): string => {
+  const [y, m] = ym.split('-')
+  return `${MESES[+m - 1]}${withYear ? ` de ${y}` : ''}`
+}

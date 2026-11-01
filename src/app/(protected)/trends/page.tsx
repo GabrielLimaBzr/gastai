@@ -6,12 +6,13 @@ import { useCategories } from '@/hooks/useCategories'
 import { StackedColumns, monthLabel } from '@/components/charts'
 import { categorize, monthsDesc } from '@/lib/ledger'
 import { categoryByMonth, categorySeries, compareMonths } from '@/lib/trends'
-import { RING } from '@/lib/palette'
+import { palette } from '@/lib/palette'
 import { brl } from '@/lib/money'
 import { useSharedMonth } from '@/contexts/month'
+import { PageSkeleton } from '@/components/ui'
+import { MonthSwitcher, PageHeader } from '@/components/ui'
 
 // ↑ gasto subiu / ↓ gasto caiu: par quente/frio da paleta; o sentido também vai escrito (seta + sinal), nunca só a cor
-const UP = '#c98500', DOWN = '#199e70'
 
 const pct = (p: number | null) => (p == null ? 'novo' : `${p >= 0 ? '+' : '−'}${Math.abs(p * 100).toFixed(0)}%`)
 
@@ -36,7 +37,7 @@ export default function Trends() {
   }, [byMonth])
   useEffect(() => { if (!cat && names.length) setCat(names[0]) }, [names, cat])
 
-  if (loading || !ready) return <p className="text-zinc-500">Carregando…</p>
+  if (loading || !ready) return <PageSkeleton />
   if (!months.length) return <p className="text-zinc-400">Importe faturas para ver as tendências.</p>
 
   const prev = months[months.indexOf(month) + 1]
@@ -56,14 +57,11 @@ export default function Trends() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Tendências</h1>
+      <PageHeader title="Tendências" description="Como cada categoria se comporta de um mês para o outro." actions={<MonthSwitcher value={month} onChange={setMonth} options={months} />} />
 
       <section className="card">
         <div className="flex flex-wrap items-center justify-between gap-2">
           <h2 className="font-medium">Contra o mês anterior</h2>
-          <select className="input w-auto" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Mês">
-            {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-          </select>
         </div>
         {!prev ? (
           <p className="mt-3 text-sm text-zinc-500">Só há uma fatura importada: assim que houver o mês seguinte, a comparação aparece aqui.</p>
@@ -74,8 +72,8 @@ export default function Trends() {
               <b className={totalDelta > 0 ? 'text-amber-400' : 'text-emerald-400'}>{totalDelta > 0 ? '▲ +' : '▼ −'}{brl(Math.abs(totalDelta))} ({pct(prevTotal ? totalDelta / prevTotal : null)})</b>
             </p>
             <p className="mb-3 mt-1 flex flex-wrap gap-x-4 text-xs text-zinc-500">
-              <span className="flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: UP }} />gastou mais</span>
-              <span className="flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: DOWN }} />gastou menos</span>
+              <span className="flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: palette().up }} />gastou mais</span>
+              <span className="flex items-center gap-1.5"><i className="inline-block size-2.5 rounded-sm" style={{ background: palette().down }} />gastou menos</span>
             </p>
             <ul className="space-y-3">
               {deltas.slice(0, 12).map((d) => (
@@ -92,10 +90,10 @@ export default function Trends() {
                     <span className="absolute inset-y-0 left-1/2 w-px bg-zinc-600" />
                     <span className="absolute inset-y-0 rounded-full"
                       style={d.delta >= 0
-                        ? { left: '50%', width: `${(d.delta / maxAbs) * 50}%`, background: UP }
-                        : { right: '50%', width: `${(-d.delta / maxAbs) * 50}%`, background: DOWN }} />
+                        ? { left: '50%', width: `${(d.delta / maxAbs) * 50}%`, background: palette().up }
+                        : { right: '50%', width: `${(-d.delta / maxAbs) * 50}%`, background: palette().down }} />
                   </div>
-                  <p className="mt-0.5 text-xs text-zinc-500">{brl(d.prev)} → {brl(d.cur)}</p>
+                  <p className="mt-0.5 text-xs text-zinc-500">de {brl(d.prev)} para {brl(d.cur)}</p>
                 </li>
               ))}
             </ul>
@@ -111,7 +109,7 @@ export default function Trends() {
           </select>
         </div>
         <p className="mb-3 mt-1 text-xs text-zinc-500">Últimos {asc.length} meses de fatura{goal ? '; a linha branca é a sua meta mensal' : ''}.</p>
-        <StackedColumns months={asc} series={[{ key: 'c', name: cat, color: RING[0] }]}
+        <StackedColumns months={asc} series={[{ key: 'c', name: cat, color: palette().ring[0] }]}
           data={Object.fromEntries(asc.map((m, i) => [m, { c: series[i] }]))}
           marker={goal ? Object.fromEntries(asc.map((m) => [m, goal])) : undefined} markerLabel="Meta" height={200} />
         {withData.length > 0 && (

@@ -196,23 +196,23 @@ describe('idioma do aparelho', () => {
 })
 
 import { cardStyle } from '../src/lib/cards'
-import { BANK_COLOR, FALLBACK } from '../src/lib/palette'
+import { palette, paletteFor, setPaletteMode } from '../src/lib/palette'
 
 describe('cor dos cartões', () => {
   const accs = [{ id: 'a', name: 'Cresol' }, { id: 'b', name: 'Santander Elite' }, { id: 'c', name: 'Nubank' }, { id: 'd', name: 'Inter' }, { id: 'e', name: 'C6' }]
   it('usa a cor da marca de cada banco, em qualquer ordem', () => {
-    expect(cardStyle(accs, 'c').color).toBe(BANK_COLOR.nubank) // roxo
-    expect(cardStyle(accs, 'a').color).toBe(BANK_COLOR.cresol) // laranja
-    expect(cardStyle(accs, 'b').color).toBe(BANK_COLOR.santander) // vermelho
-    expect(cardStyle([...accs].reverse(), 'c').color).toBe(BANK_COLOR.nubank)
+    expect(cardStyle(accs, 'c').color).toBe(palette().bank.nubank) // roxo
+    expect(cardStyle(accs, 'a').color).toBe(palette().bank.cresol) // laranja
+    expect(cardStyle(accs, 'b').color).toBe(palette().bank.santander) // vermelho
+    expect(cardStyle([...accs].reverse(), 'c').color).toBe(palette().bank.nubank)
   })
   it('outros bancos recebem cores fixas que não repetem as da marca', () => {
-    expect(cardStyle(accs, 'd').color).toBe(FALLBACK[0])
-    expect(cardStyle(accs, 'e').color).toBe(FALLBACK[1])
-    expect(Object.values(BANK_COLOR)).not.toContain(cardStyle(accs, 'd').color)
+    expect(cardStyle(accs, 'd').color).toBe(palette().fallback[0])
+    expect(cardStyle(accs, 'e').color).toBe(palette().fallback[1])
+    expect(Object.values(palette().bank)).not.toContain(cardStyle(accs, 'd').color)
   })
   it('compra sem cartão fica cinza', () => {
-    expect(cardStyle(accs, null)).toEqual({ name: 'Sem cartão', color: '#71717a' })
+    expect(cardStyle(accs, null)).toEqual({ name: 'Sem cartão', color: palette().none })
   })
 })
 
@@ -230,33 +230,32 @@ describe('foldTop (fatias da rosca)', () => {
   })
 })
 
-import { colorWarnings, contrast, deltaE, SURFACE } from '../src/lib/color'
-import { PRESET_COLORS } from '../src/lib/palette'
+import { colorWarnings, contrast, deltaE } from '../src/lib/color'
 
 describe('cor escolhida pelo usuário', () => {
   it('a cor escolhida vence a da marca', () => {
     const accs = [{ id: 'n', name: 'Nubank', color: '#3987e5' }, { id: 'c', name: 'Cresol', color: null }]
     expect(cardStyle(accs, 'n').color).toBe('#3987e5')
-    expect(cardStyle(accs, 'c').color).toBe(BANK_COLOR.cresol)
+    expect(cardStyle(accs, 'c').color).toBe(palette().bank.cresol)
   })
   it('ignora cor inválida', () => {
-    expect(cardStyle([{ id: 'n', name: 'Nubank', color: 'roxo' }], 'n').color).toBe(BANK_COLOR.nubank)
+    expect(cardStyle([{ id: 'n', name: 'Nubank', color: 'roxo' }], 'n').color).toBe(palette().bank.nubank)
   })
   it('cartão com cor própria não consome cor de reserva', () => {
     const accs = [{ id: 'a', name: 'Inter', color: '#d55181' }, { id: 'b', name: 'C6', color: null }]
-    expect(cardStyle(accs, 'b').color).toBe(FALLBACK[0])
+    expect(cardStyle(accs, 'b').color).toBe(palette().fallback[0])
   })
   it('mede contraste e diferença entre cores', () => {
     expect(contrast('#ffffff', '#000000')).toBeCloseTo(21, 0)
-    expect(deltaE(BANK_COLOR.cresol, BANK_COLOR.santander)).toBeGreaterThan(15) // as cores de marca escolhidas se distinguem
+    expect(deltaE(palette().bank.cresol, palette().bank.santander)).toBeGreaterThan(15) // as cores de marca escolhidas se distinguem
     expect(deltaE('#d95926', '#e66767')).toBeLessThan(15) // laranja/vermelho "puros" se confundiam
   })
   it('todas as opções do seletor têm contraste suficiente no fundo', () => {
-    for (const p of PRESET_COLORS) expect(contrast(p.hex, SURFACE)).toBeGreaterThanOrEqual(3)
+    for (const m of ['dark', 'light'] as const) for (const p of paletteFor(m).presets) expect(contrast(p.hex, paletteFor(m).surface), `${m} ${p.name}`).toBeGreaterThanOrEqual(3)
   })
   it('avisa cor escura demais e cor parecida com outro cartão', () => {
     expect(colorWarnings('#222222', [])).toHaveLength(1)
-    expect(colorWarnings('#c90c27', [{ name: 'Santander', color: '#c70d28' }])[0]).toMatch(/Santander/)
+    expect(colorWarnings(palette().bank.santander, [{ name: 'Santander', color: palette().bank.santander.replace('cc', 'cd') }])[0]).toMatch(/Santander/)
     expect(colorWarnings('#3987e5', [{ name: 'Nubank', color: '#a05ae0' }])).toEqual([])
   })
 })
@@ -455,5 +454,37 @@ describe('guia de primeiros passos', () => {
   })
   it('tudo feito', () => {
     expect(progress(buildSteps({ statements: true, cards: 1, cardsMissingDueDay: 0, categorized: true, income: true, bills: true, goal: true, payment: true }))).toMatchObject({ done: 7, allDone: true, next: undefined })
+  })
+})
+
+describe('paletas por tema (claro e escuro)', () => {
+  const modes = ['dark', 'light'] as const
+  it('toda cor de dado tem contraste ≥ 3:1 com o fundo do seu tema', () => {
+    for (const m of modes) {
+      const p = paletteFor(m)
+      const all = { ...p.bank, rankBar: p.rankBar, fixed: p.fixed, none: p.none, ringOther: p.ringOther, up: p.up, down: p.down, ...p.goal, ...Object.fromEntries(p.ring.map((c, i) => ['ring' + i, c])), ...Object.fromEntries(p.fallback.map((c, i) => ['fb' + i, c])) }
+      for (const [name, hex] of Object.entries(all)) expect(contrast(hex, p.surface), `${m}/${name} ${hex}`).toBeGreaterThanOrEqual(3)
+    }
+  })
+  it('as cores de marca se distinguem entre si e das cores de reserva (ΔE ≥ 15)', () => {
+    for (const m of modes) {
+      const p = paletteFor(m)
+      const brand = Object.values(p.bank)
+      for (let i = 0; i < brand.length; i++) for (let j = i + 1; j < brand.length; j++) expect(deltaE(brand[i], brand[j]), `${m} marca ${i}/${j}`).toBeGreaterThan(15)
+      for (const b of brand) for (const f of p.fallback) expect(deltaE(b, f), `${m} ${b}/${f}`).toBeGreaterThan(15)
+    }
+  })
+  it('as fatias vizinhas da rosca (inclusive a que fecha o anel) se distinguem', () => {
+    for (const m of modes) {
+      const r = paletteFor(m).ring
+      for (let i = 0; i < r.length; i++) expect(deltaE(r[i], r[(i + 1) % r.length]), `${m} fatia ${i}`).toBeGreaterThan(15)
+    }
+  })
+  it('a cor do cartão segue o tema ativo', () => {
+    const accs = [{ id: 'n', name: 'Nubank' }]
+    setPaletteMode('light')
+    expect(cardStyle(accs, 'n').color).toBe(paletteFor('light').bank.nubank)
+    setPaletteMode('dark')
+    expect(cardStyle(accs, 'n').color).toBe(paletteFor('dark').bank.nubank)
   })
 })

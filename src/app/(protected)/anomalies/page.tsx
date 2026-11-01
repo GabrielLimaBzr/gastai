@@ -2,13 +2,14 @@
 import { useMemo } from 'react'
 import { useTransactions } from '@/hooks/useData'
 import { detectAnomalies } from '@/lib/anomalies'
+import { PageSkeleton } from '@/components/ui'
 
 const LABEL = { duplicate: 'Duplicada', spike: 'Pico', new_merchant_high: 'Novo e alto', price_change: 'Preço mudou' }
 
 export default function Anomalies() {
   const { rows, loading } = useTransactions()
   const found = useMemo(() => detectAnomalies(rows), [rows])
-  if (loading) return <p className="text-zinc-500">Carregando…</p>
+  if (loading) return <PageSkeleton />
   if (!found.length) return <p className="text-zinc-400">Nenhuma anomalia detectada.</p>
   return (
     <ul className="space-y-2">

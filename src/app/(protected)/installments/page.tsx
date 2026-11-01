@@ -3,11 +3,14 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccounts, useTransactions } from '@/hooks/useData'
 import { useBills } from '@/hooks/useBills'
-import { FIXED_COLOR, StackedColumns, monthLabel, type Series } from '@/components/charts'
+import { StackedColumns, monthLabel, type Series } from '@/components/charts'
+import { palette } from '@/lib/palette'
 import { cardStyle } from '@/lib/cards'
 import { endingSchedule, futureDetail, groupSum, monthsDesc } from '@/lib/ledger'
 import { brl } from '@/lib/money'
 import { useSharedMonth } from '@/contexts/month'
+import { PageSkeleton } from '@/components/ui'
+import { MonthSwitcher, PageHeader } from '@/components/ui'
 
 const FIXED = '__fixed__'
 
@@ -46,7 +49,7 @@ export default function Installments() {
     return { future, schedule, remaining: future.reduce((s, m) => s + m.cents, 0) }
   }, [rows, base])
 
-  if (loading || !billsReady) return <p className="text-zinc-500">Carregando…</p>
+  if (loading || !billsReady) return <PageSkeleton />
   if (!months.length) return <p className="text-zinc-400">Importe uma fatura para ver as parcelas.</p>
 
   const withFixed = anyFixed && !cardsOnly
@@ -54,7 +57,7 @@ export default function Installments() {
   const cardIds = [...new Set(view.future.flatMap((m) => m.items.map((i) => i.row.account_id ?? '')))]
   const series: Series[] = [
     ...accounts.filter((a) => cardIds.includes(a.id)).map((a) => ({ key: a.id, name: a.name, color: cardStyle(accounts, a.id).color })),
-    ...(withFixed ? [{ key: FIXED, name: 'Contas fixas', color: FIXED_COLOR }] : []),
+    ...(withFixed ? [{ key: FIXED, name: 'Contas fixas', color: palette().fixed }] : []),
   ]
   const chartData: Record<string, Record<string, number>> = {}
   for (const m of view.future) {
@@ -67,15 +70,9 @@ export default function Installments() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Parcelas futuras</h1>
-        <select className="input w-auto" value={base} onChange={(e) => setBase(e.target.value)} aria-label="Projetar a partir da fatura de">
-          {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-        </select>
-      </div>
-      <p className="text-sm text-zinc-500">
-        O que já está parcelado nas faturas de <b>{monthLabel(base)}</b> e ainda vai cair nos próximos meses. Compras novas ainda não entram.
-      </p>
+      <PageHeader title="Parcelas futuras"
+        description={`O que já está parcelado nas faturas de ${monthLabel(base)} e ainda vai cair nos próximos meses. Compras novas ainda não entram.`}
+        actions={<MonthSwitcher value={base} onChange={setBase} options={months} label="Projetar a partir da fatura de" />} />
 
       {!view.future.length ? (
         <p className="card text-sm text-zinc-400">Nenhuma parcela futura nas faturas deste mês. ✓</p>
@@ -83,7 +80,7 @@ export default function Installments() {
         <>
           <div className="grid grid-cols-2 gap-3 md:grid-cols-3">
             <div className="card min-w-0"><p className="text-xs text-zinc-400">Ainda vai cair</p><p className="mt-1 truncate text-xl font-semibold tabular-nums sm:text-2xl">{brl(view.remaining)}</p><p className="mt-0.5 text-xs text-zinc-500">{view.schedule.length} parcelamentos</p></div>
-            <div className="card min-w-0"><p className="text-xs text-zinc-400">Próximo mês ({monthLabel(first.month)})</p><p className="mt-1 truncate text-xl font-semibold tabular-nums sm:text-2xl">{brl(first.cents)}</p><p className="mt-0.5 text-xs text-zinc-500">{first.items.length} parcelas</p></div>
+            <div className="card min-w-0"><p className="text-xs text-zinc-400">Próximo mês ({monthLabel(first.month)})</p><p className="mt-1 truncate text-xl font-semibold tabular-nums sm:text-2xl">{brl(first.cents)}</p><p className="mt-0.5 text-xs text-zinc-500">{first.items.length} {first.items.length === 1 ? "parcela" : "parcelas"}</p></div>
             <div className="card col-span-2 min-w-0 md:col-span-1"><p className="text-xs text-zinc-400">Mês mais pesado ({monthLabel(peak.month)})</p><p className="mt-1 truncate text-xl font-semibold tabular-nums sm:text-2xl">{brl(peak.cents)}</p><p className="mt-0.5 text-xs text-zinc-500">termina tudo em {monthLabel(view.future[view.future.length - 1].month)}</p></div>
           </div>
 
@@ -124,7 +121,7 @@ export default function Installments() {
                     <summary className="cursor-pointer list-none p-3 [&::-webkit-details-marker]:hidden">
                       <span className="flex items-baseline justify-between gap-3">
                         <b>{monthLabel(m.month)}</b>
-                        <span className="tabular-nums">{brl(m.cents)} <span className="text-xs text-zinc-500">em {m.items.length} parcelas</span></span>
+                        <span className="tabular-nums">{brl(m.cents)} <span className="text-xs text-zinc-500">em {m.items.length} {m.items.length === 1 ? "parcela" : "parcelas"}</span></span>
                       </span>
                       <span className="mt-1.5 flex flex-wrap gap-1.5 text-xs">
                         {byCard.map((c) => {

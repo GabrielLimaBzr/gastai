@@ -5,7 +5,7 @@ import { createClient } from '@/lib/supabase/client'
 import { bankOfAccount } from '@/lib/bank'
 import { cardStyle, type CardAccount } from '@/lib/cards'
 import { colorWarnings, isHex } from '@/lib/color'
-import { PRESET_COLORS } from '@/lib/palette'
+import { palette } from '@/lib/palette'
 import { DueDayField } from '@/components/DueDayField'
 import { friendlyError } from '@/lib/errors'
 
@@ -47,11 +47,11 @@ export function CardColors({ accounts, onChanged }: { accounts: (CardAccount & {
             {isOpen && (
               <div className="mt-3 space-y-3 rounded-lg border border-zinc-800 p-3">
                 <div className="flex flex-wrap gap-2" role="radiogroup" aria-label={`Cor do cartão ${a.name}`}>
-                  {PRESET_COLORS.map((p) => {
+                  {palette().presets.map((p) => {
                     const selected = color.toLowerCase() === p.hex
                     return (
                       <button key={p.hex} type="button" role="radio" aria-checked={selected} aria-label={p.name} title={p.name} onClick={() => save(a.id, p.hex)}
-                        className={`grid size-9 place-items-center rounded-full border-2 ${selected ? 'border-white' : 'border-transparent'}`} style={{ background: p.hex }}>
+                        className={`grid size-9 place-items-center rounded-full border-2 ${selected ? 'border-zinc-100' : 'border-transparent'}`} style={{ background: p.hex }}>
                         {selected && <Check size={16} className="text-white drop-shadow" aria-hidden />}
                       </button>
                     )

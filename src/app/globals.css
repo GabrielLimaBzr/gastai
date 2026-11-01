@@ -1,13 +1,120 @@
 @import 'tailwindcss';
 
-:root { color-scheme: dark; }
-body { @apply bg-zinc-950 text-zinc-100 antialiased; font-family: ui-sans-serif, system-ui, sans-serif; }
-@layer components {
-.card { @apply rounded-xl border border-zinc-800 bg-zinc-900 p-4; }
-.btn { @apply inline-flex items-center justify-center gap-2 rounded-lg bg-emerald-500 px-4 py-2 text-sm font-medium text-zinc-950 hover:bg-emerald-400 disabled:opacity-50; }
-.btn-ghost { @apply inline-flex items-center justify-center gap-2 rounded-lg border border-zinc-700 px-3 py-2 text-sm text-zinc-300 hover:bg-zinc-800 disabled:opacity-50; }
-/* 16px no celular: abaixo disso o iOS dá zoom ao focar o campo */
-.input { @apply w-full rounded-lg border border-zinc-700 bg-zinc-950 px-3 py-2 text-base outline-none focus:border-emerald-500 md:text-sm; }
-.chip { @apply inline-flex items-center gap-1 rounded-full border border-zinc-700 px-2 py-0.5 text-xs text-zinc-400; }
+/*
+ * Sistema de design do GastAI
+ * – "Caderno de contas": superfícies calmas, números em destaque; cor só onde há significado (cartões, alertas, metas).
+ * – A escala `zinc` do Tailwind vira escala SEMÂNTICA do tema: 950 = fundo da página, 900 = folha (cards),
+ *   800 = linhas e superfícies elevadas, 700/600 = bordas de campos, 500/400/300 = textos, 100 = texto principal.
+ *   Assim `bg-zinc-900`, `text-zinc-400`… trocam sozinhos entre claro e escuro.
+ * – Raios por hierarquia: 24 (destaque), 16 (folhas), 12 (controles), cápsula (chips).
+ */
+@theme {
+  --font-sans: 'IBM Plex Sans Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', sans-serif;
 }
+
+/* ---------- Escuro (padrão) ---------- */
+:root,
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-zinc-50: #f6f9fc;
+  --color-zinc-100: #eaf0f6;
+  --color-zinc-200: #dbe2ea;
+  --color-zinc-300: #c2ccd7;
+  --color-zinc-400: #9fabb9;
+  --color-zinc-500: #8190a1;
+  --color-zinc-600: #3f4f61;
+  --color-zinc-700: #2b3947;
+  --color-zinc-800: #1d2733;
+  --color-zinc-900: #141b23;
+  --color-zinc-950: #0c1117;
+  --on-accent: #04130d;
+  --accent-hover: #34d399;
+  --chart-axis: #8190a1;
+  --chart-grid: #233040;
+  --chart-surface: #141b23;
+  --chart-marker: #eaf0f6;
+  --chart-label: #c2ccd7;
+  --shadow-sheet: none;
+  --shadow-float: 0 18px 44px rgba(0, 0, 0, 0.55);
+}
+
+/* ---------- Claro ---------- */
+:root[data-theme='light'] {
+  color-scheme: light;
+  --color-zinc-50: #0a0f1a;
+  --color-zinc-100: #101828;
+  --color-zinc-200: #1d2939;
+  --color-zinc-300: #344054;
+  --color-zinc-400: #475467;
+  --color-zinc-500: #5b6879;
+  --color-zinc-600: #b8c1cc;
+  --color-zinc-700: #d3d9e1;
+  --color-zinc-800: #e6eaef;
+  --color-zinc-900: #ffffff;
+  --color-zinc-950: #f3f5f7;
+  /* textos de status: versões mais escuras, para ler bem sobre branco (≥ 4,5:1) */
+  --color-emerald-200: #064e3b;
+  --color-emerald-300: #065f46;
+  --color-emerald-400: #047857;
+  --color-emerald-500: #0b7a5c;
+  --color-amber-200: #78350f;
+  --color-amber-300: #92400e;
+  --color-amber-400: #b45309;
+  --color-red-200: #991b1b;
+  --color-red-300: #b91c1c;
+  --color-red-400: #c62828;
+  --color-sky-200: #075985;
+  --on-accent: #ffffff;
+  --accent-hover: #09654c;
+  --chart-axis: #5b6879;
+  --chart-grid: #e6eaef;
+  --chart-surface: #ffffff;
+  --chart-marker: #101828;
+  --chart-label: #344054;
+  --shadow-sheet: 0 1px 2px rgba(16, 24, 40, 0.05), 0 1px 1px rgba(16, 24, 40, 0.03);
+  --shadow-float: 0 18px 44px rgba(16, 24, 40, 0.18);
+}
+
+html { -webkit-text-size-adjust: 100%; }
+body {
+  @apply bg-zinc-950 text-zinc-100 antialiased;
+  font-feature-settings: 'ss01' 0, 'tnum' 0;
+  text-rendering: optimizeLegibility;
+}
+h1, h2, h3 { letter-spacing: -0.015em; }
+
+/* foco visível em tudo que se opera com teclado */
+:where(a, button, input, select, textarea, summary, [role='tab'], [role='checkbox'], [role='radio']):focus-visible {
+  outline: 2px solid var(--color-emerald-500);
+  outline-offset: 2px;
+}
+
+@layer components {
+  /* folha: superfície padrão; sombra só no tema claro (no escuro a borda já separa) */
+  .card { @apply rounded-2xl border border-zinc-800 bg-zinc-900 p-4 md:p-5; box-shadow: var(--shadow-sheet); }
+  .btn { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl bg-emerald-500 px-4 py-2 text-sm font-semibold transition-colors disabled:opacity-50 md:min-h-10; color: var(--on-accent); }
+  .btn:hover:not(:disabled) { background-color: var(--accent-hover); }
+  .btn-ghost { @apply inline-flex min-h-11 items-center justify-center gap-2 rounded-xl border border-zinc-700 bg-transparent px-3.5 py-2 text-sm font-medium text-zinc-200 transition-colors hover:bg-zinc-800 disabled:opacity-50 md:min-h-10; }
+  /* 16px no celular: abaixo disso o iOS dá zoom ao focar o campo */
+  .input { @apply min-h-11 w-full rounded-xl border border-zinc-700 bg-zinc-950 px-3.5 py-2 text-base text-zinc-100 placeholder:text-zinc-500 md:min-h-10 md:text-sm; }
+  .input:focus-visible { outline: 2px solid var(--color-emerald-500); outline-offset: 0; border-color: var(--color-emerald-500); }
+  .chip { @apply inline-flex items-center gap-1 rounded-full border border-zinc-700 px-2 py-0.5 text-xs text-zinc-400; }
+  /* controle segmentado (abas e alternâncias) */
+  .seg { @apply inline-flex rounded-xl border border-zinc-800 bg-zinc-950 p-0.5 text-sm; }
+  .seg > button { @apply min-h-9 rounded-[10px] px-3 font-medium text-zinc-400 transition-colors hover:text-zinc-100; }
+  .seg > button[aria-selected='true'], .seg > button[aria-pressed='true'] { @apply bg-zinc-900 text-zinc-100; box-shadow: var(--shadow-sheet), 0 0 0 1px var(--color-zinc-800); }
+}
+
+.text-on-accent { color: var(--on-accent); }
 .safe-bottom { padding-bottom: env(safe-area-inset-bottom); }
+
+/* movimento só como resposta a ações; quem pede menos movimento não recebe animação */
+@media (prefers-reduced-motion: reduce) {
+  *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; scroll-behavior: auto !important; }
+}
+
+/* resposta a uma ação (abrir a folha "Mais"); não é animação de decoração */
+@keyframes sheet-in { from { transform: translateY(28px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+@keyframes fade-in { from { opacity: 0; } to { opacity: 1; } }
+.sheet-in { animation: sheet-in 0.2s ease-out; }
+.fade-in { animation: fade-in 0.2s ease-out; }

@@ -1,5 +1,7 @@
-/** Cor de fundo dos cartões/gráficos (zinc-900); referência para contraste. */
-export const SURFACE = '#18181b'
+import { palette } from './palette'
+
+/** Cor de fundo das folhas/gráficos no tema atual; referência para contraste. */
+export const surface = (): string => palette().surface
 
 export const isHex = (v: unknown): v is string => typeof v === 'string' && /^#[0-9a-fA-F]{6}$/.test(v)
 
@@ -32,7 +34,7 @@ export const SIMILAR_BELOW = 15
 /** Avisos para uma cor escolhida: pouco contraste com o fundo ou parecida com a de outro cartão. */
 export function colorWarnings(hex: string, others: { name: string; color: string }[]): string[] {
   const out: string[] = []
-  if (contrast(hex, SURFACE) < 3) out.push('Essa cor é muito escura para o fundo: pode ficar difícil de ver nos gráficos.')
+  if (contrast(hex, surface()) < 3) out.push('Essa cor tem pouco contraste com o fundo: pode ficar difícil de ver nos gráficos.')
   const near = others.find((o) => deltaE(hex, o.color) < SIMILAR_BELOW)
   if (near) out.push(`Parecida com a cor de «${near.name}»: nos gráficos as duas podem se confundir.`)
   return out

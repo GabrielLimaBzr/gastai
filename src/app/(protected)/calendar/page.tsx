@@ -6,13 +6,16 @@ import { useAccountsFull, useTransactions } from '@/hooks/useData'
 import { usePayments } from '@/hooks/usePayments'
 import { useBills } from '@/hooks/useBills'
 import { DueDayField } from '@/components/DueDayField'
-import { FIXED_COLOR, monthLabel } from '@/components/charts'
+import { monthLabel } from '@/components/charts'
+import { palette } from '@/lib/palette'
 import { cardStyle } from '@/lib/cards'
 import { buildEvents, daysUntil, dueLabel, monthGrid, type DueEvent } from '@/lib/calendar'
 import { addMonths } from '@/lib/ledger'
 import { brl, toCents, toInput } from '@/lib/money'
 import { useSharedMonth } from '@/contexts/month'
 import { friendlyError } from '@/lib/errors'
+import { PageSkeleton } from '@/components/ui'
+import { MonthSwitcher, PageHeader } from '@/components/ui'
 
 const WEEK = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 
@@ -37,10 +40,10 @@ export default function Calendar() {
 
   const monthBills = ym ? forMonth(ym) : []
   const events = useMemo(() => (ym ? buildEvents({
-    ym, accounts, rows, bills: monthBills, billColor: FIXED_COLOR, colorOf: (id) => cardStyle(accounts, id).color,
+    ym, accounts, rows, bills: monthBills, billColor: palette().fixed, colorOf: (id) => cardStyle(accounts, id).color,
   }) : []), [ym, accounts, rows, JSON.stringify(monthBills)]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading || !ym || !today || !pay.ready || !billsReady) return <p className="text-zinc-500">Carregando…</p>
+  if (loading || !ym || !today || !pay.ready || !billsReady) return <PageSkeleton />
 
   const [y, m] = ym.split('-').map(Number)
   const grid = monthGrid(y, m)
@@ -96,14 +99,7 @@ export default function Calendar() {
 
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between gap-2">
-        <h1 className="text-xl font-semibold">Calendário</h1>
-        <div className="flex items-center gap-1">
-          <button className="btn-ghost px-2" onClick={() => { setYm(addMonths(ym, -1)); setPick(null) }} aria-label="Mês anterior"><ChevronLeft size={18} /></button>
-          <span className="min-w-20 text-center text-sm font-medium">{monthLabel(ym)}</span>
-          <button className="btn-ghost px-2" onClick={() => { setYm(addMonths(ym, 1)); setPick(null) }} aria-label="Próximo mês"><ChevronRight size={18} /></button>
-        </div>
-      </div>
+      <PageHeader title="Calendário" description="Vencimentos das faturas e das contas, com o que já foi pago." actions={<MonthSwitcher value={ym} onChange={(m) => { setYm(m); setPick(null) }} onStep={(d) => { setYm(addMonths(ym, d)); setPick(null) }} />} />
 
       {noDay.length > 0 && (
         <div className="card space-y-2 border-amber-500/40">
@@ -148,7 +144,7 @@ export default function Calendar() {
 
       <section className="card">
         <div className="grid grid-cols-7 gap-1 text-center text-xs text-zinc-500" aria-hidden>{WEEK.map((d, i) => <span key={i}>{d}</span>)}</div>
-        <div className="mt-1 grid grid-cols-7 gap-1" role="grid" aria-label={`Vencimentos de ${monthLabel(ym)}`}>
+        <div className="mt-1 grid grid-cols-7 gap-1" role="group" aria-label={`Vencimentos de ${monthLabel(ym)}`}>
           {grid.flat().map((day, i) => {
             if (!day) return <span key={i} />
             const ev = events.filter((e) => e.day === day)
@@ -191,7 +187,7 @@ export default function Calendar() {
                 <li key={`${e.kind}-${e.ref}`} className={`flex items-start gap-3 py-2.5 ${p ? 'opacity-60' : ''}`}>
                   <button type="button" role="checkbox" aria-checked={!!p} onClick={() => toggle(e)}
                     aria-label={`${p ? 'Desmarcar' : 'Marcar como pago'}: ${e.label}`}
-                    className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-full border-2 ${p ? 'border-emerald-500 bg-emerald-500 text-zinc-950' : 'border-zinc-600 hover:border-emerald-400'}`}>
+                    className={`mt-0.5 grid size-8 shrink-0 place-items-center rounded-full border-2 ${p ? 'border-emerald-500 bg-emerald-500 text-on-accent' : 'border-zinc-600 hover:border-emerald-400'}`}>
                     {p && <Check size={18} strokeWidth={3} aria-hidden />}
                   </button>
                   <span className="w-8 shrink-0 pt-0.5 text-center text-lg font-semibold tabular-nums">{String(e.day).padStart(2, '0')}</span>

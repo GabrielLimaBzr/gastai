@@ -1,6 +1,6 @@
 import { bankOfAccount } from './bank'
 import { isHex } from './color'
-import { BANK_COLOR, FALLBACK } from './palette'
+import { palette } from './palette'
 
 export interface CardAccount { id: string; name: string; color?: string | null }
 
@@ -11,10 +11,11 @@ export interface CardAccount { id: string; name: string; color?: string | null }
  */
 export function cardStyle(accounts: CardAccount[], id: string | null): { name: string; color: string } {
   const acc = accounts.find((a) => a.id === id)
-  if (!acc) return { name: 'Sem cartão', color: '#71717a' }
+  if (!acc) return { name: 'Sem cartão', color: palette().none }
   if (isHex(acc.color)) return { name: acc.name, color: acc.color }
   const bank = bankOfAccount(acc.name)
-  if (bank) return { name: acc.name, color: BANK_COLOR[bank] }
+  if (bank) return { name: acc.name, color: palette().bank[bank] }
   const others = accounts.filter((a) => !isHex(a.color) && !bankOfAccount(a.name))
-  return { name: acc.name, color: FALLBACK[others.findIndex((a) => a.id === acc.id) % FALLBACK.length] }
+  const fb = palette().fallback
+  return { name: acc.name, color: fb[others.findIndex((a) => a.id === acc.id) % fb.length] }
 }

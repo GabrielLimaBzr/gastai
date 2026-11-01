@@ -2,11 +2,12 @@
 import { useEffect, useRef, useState } from 'react'
 import { brl } from '@/lib/money'
 
-import { FIXED_COLOR, RANK_BAR, SERIES } from '@/lib/palette'
-export { FIXED_COLOR, RANK_BAR, SERIES }
-const AXIS = '#71717a'
-const GRID = '#27272a'
-const SURFACE = '#18181b'
+import { palette } from '@/lib/palette'
+
+// cores de chrome do gráfico vêm de variáveis CSS do tema (definidas em globals.css)
+const AXIS = 'var(--chart-axis)'
+const GRID = 'var(--chart-grid)'
+const SURFACE = 'var(--chart-surface)'
 
 export const fmtShort = (cents: number): string => {
   const v = Math.abs(cents) / 100
@@ -98,9 +99,9 @@ export function StackedColumns({ months, series, data, marker, markerLabel, heig
                   // se a linha de referência (renda) passa colada acima da coluna, o total sobe para não ser riscado por ela
                   const my = marker?.[m] ? y(marker[m]) : null
                   const ly = my != null && my < y(totals[i]) && y(totals[i]) - my < 22 ? my - 6 : y(totals[i]) - 5
-                  return <text x={cx} y={ly} textAnchor="middle" fontSize={11} fill="#d4d4d8">{fmtShort(totals[i])}</text>
+                  return <text x={cx} y={ly} textAnchor="middle" fontSize={11} fill="var(--chart-label)">{fmtShort(totals[i])}</text>
                 })()}
-                {marker?.[m] ? <line x1={cx - bw / 2 - 6} x2={cx + bw / 2 + 6} y1={y(marker[m])} y2={y(marker[m])} stroke="#fafafa" strokeWidth={2} /> : null}
+                {marker?.[m] ? <line x1={cx - bw / 2 - 6} x2={cx + bw / 2 + 6} y1={y(marker[m])} y2={y(marker[m])} stroke="var(--chart-marker)" strokeWidth={2} /> : null}
                 {i % labelEvery === 0 && <text x={cx} y={H - 8} textAnchor="middle" fontSize={11} fill={AXIS}>{monthLabel(m)}</text>}
               </g>
             )
@@ -126,7 +127,7 @@ export function StackedColumns({ months, series, data, marker, markerLabel, heig
 export interface BarItem { key: string; label: string; cents: number; count?: number; note?: string }
 
 /** Barras horizontais ordenadas, uma cor só: o valor vem impresso em cada linha. */
-export function HBars({ items, color = RANK_BAR, empty = 'Sem dados.' }: { items: BarItem[]; color?: string; empty?: string }) {
+export function HBars({ items, color = palette().rankBar, empty = 'Sem dados.' }: { items: BarItem[]; color?: string; empty?: string }) {
   const max = Math.max(...items.map((i) => i.cents), 1)
   const total = items.reduce((s, i) => s + Math.max(i.cents, 0), 0) || 1
   if (!items.length) return <p className="text-sm text-zinc-500">{empty}</p>
@@ -191,7 +192,7 @@ export function Donut({ slices, centerLabel, centerValue, centerTone, stacked }:
   })
 
   return (
-    <div className={`flex flex-col items-center gap-4 ${stacked ? '' : 'sm:flex-row sm:gap-6'}`}>
+    <div className={`flex w-full max-w-xl flex-col items-center gap-4 ${stacked ? '' : 'sm:flex-row sm:gap-8'}`}>
       <div className="relative size-44 shrink-0">
         <svg viewBox="0 0 176 176" className="size-full -rotate-90" role="img" aria-label={`${centerLabel}: ${centerValue}`}>
           <circle cx={88} cy={88} r={R} fill="none" stroke={GRID} strokeWidth={W} />

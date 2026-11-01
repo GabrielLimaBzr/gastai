@@ -4,6 +4,7 @@ import { useRouter } from 'next/navigation'
 import { Eye, EyeOff, Loader2, MailCheck } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Alert } from '@/components/Alert'
+import { ThemeToggle } from '@/components/ThemeToggle'
 import { MIN_PASSWORD, validateAuth, type AuthFieldErrors, type AuthMode } from '@/lib/authForm'
 import { friendlyAuthError } from '@/lib/errors'
 
@@ -19,6 +20,16 @@ function Field({ id, label, error, hint, children }: { id: string; label: string
       {children}
       {error ? <p id={`${id}-msg`} className="mt-1 text-sm text-red-400" role="alert">{error}</p>
         : hint ? <p id={`${id}-msg`} className="mt-1 text-xs text-zinc-500">{hint}</p> : null}
+    </div>
+  )
+}
+
+/** Moldura das telas de entrada: folha centralizada e o seletor de tema no canto. */
+function AuthShell({ children }: { children: React.ReactNode }) {
+  return (
+    <div className="relative grid min-h-dvh place-items-center px-4 py-16">
+      <div className="absolute right-4 top-[calc(1rem+env(safe-area-inset-top))] w-60"><ThemeToggle /></div>
+      <main className="card w-full max-w-sm space-y-5 p-6 sm:p-8" style={{ boxShadow: 'var(--shadow-float)' }}>{children}</main>
     </div>
   )
 }
@@ -93,7 +104,7 @@ export default function LoginPage() {
 
   if (sentTo) {
     return (
-      <main className="mx-auto mt-16 max-w-sm space-y-4 px-4">
+      <AuthShell>
         <div className="space-y-3 text-center">
           <span className="mx-auto grid size-14 place-items-center rounded-full bg-emerald-500/10 text-emerald-400"><MailCheck size={28} aria-hidden /></span>
           <h1 className="text-xl font-semibold">Confirme o seu e-mail</h1>
@@ -106,13 +117,13 @@ export default function LoginPage() {
           {cooldown > 0 ? `Reenviar e-mail (aguarde ${cooldown}s)` : 'Reenviar e-mail'}
         </button>
         <button className="w-full text-sm text-zinc-500" onClick={() => { setSentTo(null); switchMode('up') }}>Digitei o e-mail errado</button>
-      </main>
+      </AuthShell>
     )
   }
 
   const t = COPY[mode]
   return (
-    <main className="mx-auto mt-12 max-w-sm space-y-5 px-4 pb-10">
+    <AuthShell>
       <header className="flex items-center gap-3">
         {/* eslint-disable-next-line @next/next/no-img-element */}
         <img src="/icon-192.png" alt="" width={40} height={40} className="size-10 rounded-xl" />
@@ -122,7 +133,7 @@ export default function LoginPage() {
       <div className="grid grid-cols-2 rounded-lg border border-zinc-700 p-0.5 text-sm" role="tablist" aria-label="Entrar ou criar conta">
         {(['in', 'up'] as const).map((m) => (
           <button key={m} type="button" role="tab" aria-selected={mode === m} onClick={() => switchMode(m)}
-            className={`rounded-md py-2 font-medium ${mode === m ? 'bg-zinc-800 text-white' : 'text-zinc-400'}`}>{COPY[m].button}</button>
+            className={`rounded-md py-2 font-medium ${mode === m ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400'}`}>{COPY[m].button}</button>
         ))}
       </div>
 
@@ -164,6 +175,6 @@ export default function LoginPage() {
         {mode === 'in' ? <>Primeira vez aqui?{' '}<button className="text-emerald-400" onClick={() => switchMode('up')}>Criar conta</button></>
           : <>Já tem conta?{' '}<button className="text-emerald-400" onClick={() => switchMode('in')}>Entrar</button></>}
       </p>
-    </main>
+    </AuthShell>
   )
 }

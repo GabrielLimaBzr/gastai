@@ -10,6 +10,8 @@ import { downloadCsv, toCsv } from '@/lib/exportCsv'
 import { brl, txMonth } from '@/lib/money'
 import { monthLabel } from '@/components/charts'
 import { friendlyError } from '@/lib/errors'
+import { PageSkeleton } from '@/components/ui'
+import { PageHeader } from '@/components/ui'
 
 type Status = 'all' | CatState
 type View = 'rows' | 'groups'
@@ -107,7 +109,7 @@ export default function Transactions() {
       const { error } = await supabase.from('transactions').update({ category_id: categoryId }).in('id', [...ids])
       if (error) throw error
       if (rule) await saveRule(targets[0].description, categoryId)
-      setMsg(`${ids.size} compra(s) → ${name}${rule ? ' · regra salva para as próximas importações' : ''}`)
+      setMsg(`${ids.size} compra(s) agora em «${name}»${rule ? ' · regra salva para as próximas importações' : ''}`)
     } catch (e) {
       setMsg(friendlyError(e, 'salvar a categoria'))
       reload()
@@ -127,19 +129,16 @@ export default function Transactions() {
     downloadCsv(`gastai-${new Date().toISOString().slice(0, 10)}.csv`, toCsv(list.map((r) => ({ ...r, category: info(r).name }))))
   }
 
-  if (loading || !ready) return <p className="text-zinc-500">Carregando…</p>
+  if (loading || !ready) return <PageSkeleton />
 
   return (
     <div className="space-y-3">
-      <div>
-        <h1 className="text-xl font-semibold">Transações</h1>
-        <p className="mt-1 text-sm text-zinc-500">
-          Cada linha é uma compra das faturas importadas. Trocar a categoria salva na hora.{' '}
-          <span className="whitespace-nowrap"><Check size={12} className="inline text-emerald-400" /> confirmada</span> ·{' '}
-          <span className="whitespace-nowrap"><Sparkles size={12} className="inline" /> sugerida (palpite do app)</span> ·{' '}
-          <span className="whitespace-nowrap"><AlertCircle size={12} className="inline text-amber-400" /> sem categoria</span>
-        </p>
-      </div>
+      <PageHeader title="Transações" description="Cada linha é uma compra das faturas importadas. Trocar a categoria salva na hora." />
+      <p className="-mt-3 mb-1 flex flex-wrap items-center gap-x-4 gap-y-1 text-xs text-zinc-500">
+        <span className="inline-flex items-center gap-1"><Check size={12} className="text-emerald-400" aria-hidden /> categoria confirmada</span>
+        <span className="inline-flex items-center gap-1"><Sparkles size={12} aria-hidden /> sugestão do app</span>
+        <span className="inline-flex items-center gap-1"><AlertCircle size={12} className="text-amber-400" aria-hidden /> sem categoria</span>
+      </p>
 
       {/* filtros */}
       <div className="grid grid-cols-2 gap-2 md:grid-cols-[1fr_10rem_12rem]">
@@ -168,7 +167,7 @@ export default function Transactions() {
       <div className="flex flex-wrap items-center gap-2">
         <div className="inline-flex rounded-lg border border-zinc-700 p-0.5 text-sm" role="group" aria-label="Modo de exibição">
           {([['rows', 'Por compra'], ['groups', 'Por estabelecimento']] as const).map(([id, label]) => (
-            <button key={id} onClick={() => setView(id)} className={`rounded-md px-3 py-1 ${view === id ? 'bg-zinc-800 text-white' : 'text-zinc-400'}`}>{label}</button>
+            <button key={id} onClick={() => setView(id)} className={`rounded-md px-3 py-1 ${view === id ? 'bg-zinc-800 text-zinc-100' : 'text-zinc-400'}`}>{label}</button>
           ))}
         </div>
         {counts.suggested > 0 && <button className="btn-ghost" onClick={confirmSuggested}><Sparkles size={14} /> Confirmar {counts.suggested} sugeridas</button>}

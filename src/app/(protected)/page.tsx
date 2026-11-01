@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import { AlertCircle, ArrowDown, ArrowUp, CalendarClock, ChevronRight, Pencil, Target } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccounts, useTransactions, type TxRow } from '@/hooks/useData'
@@ -9,34 +10,24 @@ import { useBills } from '@/hooks/useBills'
 import { QuickStart } from '@/components/QuickStart'
 import { Welcome } from '@/components/Welcome'
 import { attention, buildEvents, dueLabel } from '@/lib/calendar'
-import { Donut, FIXED_COLOR, HBars, StackedColumns, monthLabel, type DonutSlice, type Series } from '@/components/charts'
-import { RING, RING_OTHER, SERIES } from '@/lib/palette'
+import { Donut, HBars, StackedColumns, monthLabel, type DonutSlice, type Series } from '@/components/charts'
+import { palette } from '@/lib/palette'
 import { categorize, flexibleCents, foldTop, futureInstallments, groupSum, merchantKey, monthsDesc, sumCents } from '@/lib/ledger'
 import { cardStyle } from '@/lib/cards'
-import { brl, monthKey, txMonth } from '@/lib/money'
+import { brl, monthKey, monthName, txMonth } from '@/lib/money'
 import { useSharedMonth } from '@/contexts/month'
+import { MonthSwitcher, Notice, PageHeader, PageSkeleton, Segmented } from '@/components/ui'
 
 const NO_CARD = '__none__'
 const FIXED = '__fixed__'
 
 
-function Tile({ label, value, sub, note, href, tone }: { label: string; value: string; sub?: string; note?: string; href?: string; tone?: 'bad' | 'good' }) {
-  const body = (
-    <div className="card h-full min-w-0">
-      <p className="text-xs text-zinc-400">{label}</p>
-      <p className={`mt-1 truncate text-xl font-semibold tabular-nums sm:text-2xl ${tone === 'bad' ? 'text-red-400' : tone === 'good' ? 'text-emerald-400' : ''}`}>{value}</p>
-      {sub && <p className="mt-0.5 text-xs text-zinc-500">{sub}</p>}
-      {note && <p className="text-xs text-zinc-500">{note}</p>}
-    </div>
-  )
-  return href ? <Link href={href} className="block hover:opacity-90">{body}</Link> : body
-}
-
+/** Seção plana: título + apoio, separada das outras por uma linha fina (cards ficam para o que é interativo). */
 const Section = ({ title, hint, children }: { title: string; hint?: string; children: React.ReactNode }) => (
-  <section className="card">
-    <h2 className="font-medium">{title}</h2>
-    {hint && <p className="mb-3 text-xs text-zinc-500">{hint}</p>}
-    <div className={hint ? '' : 'mt-3'}>{children}</div>
+  <section className="border-t border-zinc-800 pt-6">
+    <h2 className="text-lg font-semibold tracking-tight">{title}</h2>
+    {hint && <p className="mt-0.5 text-sm text-zinc-400">{hint}</p>}
+    <div className="mt-4">{children}</div>
   </section>
 )
 
@@ -82,7 +73,7 @@ export default function Dashboard() {
     // um bloco por cartão; a cor do cartão segue a ordem de criação e nunca muda
     const cardIds = [...accounts.map((a) => a.id), ...(rows.some((r) => !r.account_id) ? [NO_CARD] : [])]
     const series: Series[] = cardIds.map((id, i) => ({
-      key: id, color: id === NO_CARD ? '#71717a' : cardStyle(accounts, id).color,
+      key: id, color: id === NO_CARD ? palette().none : cardStyle(accounts, id).color,
       name: id === NO_CARD ? 'Sem cartão' : accounts.find((a) => a.id === id)!.name,
     }))
     const monthsAsc = [...months].reverse().slice(-12)
@@ -114,7 +105,7 @@ export default function Dashboard() {
     if (new URLSearchParams(location.search).get('renda') === '1') { history.replaceState(null, '', '/'); setIncomeFor() }
   }, [loading, month]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading || !ready || !pay.ready || !billsReady) return <p className="text-zinc-500">Carregando…</p>
+  if (loading || !ready || !pay.ready || !billsReady) return <PageSkeleton />
   if (!months.length) return <Welcome />
 
   // contas fixas e variáveis do mês (variável: valor informado, ou o do mês anterior como estimativa); entram no total, na sobra e no gráfico
@@ -129,7 +120,7 @@ export default function Dashboard() {
   const prevGrand = view.prevTotal == null || !prevMonthKey ? null : view.prevTotal + fixedFor(prevMonthKey)
   const delta = prevGrand ? (grand - prevGrand) / prevGrand : null
   // fatias das roscas: no máximo 5 categorias + "Outras" (cores validadas para fatias vizinhas)
-  const catSlices: DonutSlice[] = foldTop(view.byCategory, 5).map((s, i) => ({ key: s.key, label: s.label, cents: s.cents, color: s.folded ? RING_OTHER : RING[i], note: `${s.count}x` }))
+  const catSlices: DonutSlice[] = foldTop(view.byCategory, 5).map((s, i) => ({ key: s.key, label: s.label, cents: s.cents, color: s.folded ? palette().ringOther : palette().ring[i], note: `${s.count}x` }))
   // categorias que já passaram da meta mensal neste mês
   const overGoals = view.byCategory.flatMap((s) => {
     const goal = cats.find((c) => c.name === s.key)?.goal_cents
@@ -138,81 +129,103 @@ export default function Dashboard() {
   // vencimentos atrasados ou nos próximos 7 dias que ainda não foram marcados como pagos
   const due = attention(
     new Date(),
-    (ym) => buildEvents({ ym, accounts, rows, bills: forMonth(ym), billColor: FIXED_COLOR, colorOf: (id) => cardStyle(accounts, id).color }),
+    (ym) => buildEvents({ ym, accounts, rows, bills: forMonth(ym), billColor: palette().fixed, colorOf: (id) => cardStyle(accounts, id).color }),
     (e, ym) => !!pay.find(e.kind, e.ref, ym),
   )
   const catTotal = catSlices.reduce((s, x) => s + x.cents, 0)
   const cardSlices: DonutSlice[] = [
     ...view.cards.map((c) => ({ key: c.key, label: c.name, cents: c.total, color: c.color })),
-    ...(fixedTotal > 0 ? [{ key: FIXED, label: 'Contas fixas', cents: fixedTotal, color: FIXED_COLOR }] : []),
+    ...(fixedTotal > 0 ? [{ key: FIXED, label: 'Contas fixas', cents: fixedTotal, color: palette().fixed }] : []),
   ]
   const incomeSlices: DonutSlice[] = [
-    { key: 'cards', label: 'Cartões', cents: view.total, color: RING[0] },
-    ...(fixedTotal > 0 ? [{ key: 'fixed', label: 'Contas fixas', cents: fixedTotal, color: FIXED_COLOR }] : []),
-    ...(left > 0 ? [{ key: 'left', label: 'Sobra', cents: left, color: RING[1] }] : []),
+    { key: 'cards', label: 'Cartões', cents: view.total, color: palette().ring[0] },
+    ...(fixedTotal > 0 ? [{ key: 'fixed', label: 'Contas fixas', cents: fixedTotal, color: palette().fixed }] : []),
+    ...(left > 0 ? [{ key: 'left', label: 'Sobra', cents: left, color: palette().ring[1] }] : []),
   ]
-  const chartSeries: Series[] = fixedTotal > 0 ? [...view.series, { key: FIXED, name: 'Contas fixas', color: FIXED_COLOR }] : view.series
+  const chartSeries: Series[] = fixedTotal > 0 ? [...view.series, { key: FIXED, name: 'Contas fixas', color: palette().fixed }] : view.series
   const chartData = fixedTotal > 0
     ? Object.fromEntries(view.monthsAsc.map((m) => [m, { ...(view.evolution[m] ?? {}), [FIXED]: fixedFor(m) }]))
     : view.evolution
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center justify-between gap-3">
-        <h1 className="text-xl font-semibold">Resumo</h1>
-        <select className="input w-auto" value={month} onChange={(e) => setMonth(e.target.value)} aria-label="Mês da fatura">
-          {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
-        </select>
-      </div>
+    <div className="space-y-8">
+      <PageHeader title="Resumo" description={`Fatura de ${monthName(month, true)}`}
+        actions={<MonthSwitcher value={month} onChange={setMonth} options={months} label="Mês da fatura" />} />
 
       <QuickStart />
 
-      <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
-        <Tile label="Gasto no mês" value={brl(grand)}
-          sub={delta == null ? 'faturas de ' + monthLabel(month) : `${delta >= 0 ? '▲' : '▼'} ${Math.abs(delta * 100).toFixed(0)}% vs mês anterior`}
-          note={fixedTotal > 0 ? `cartões ${brl(view.total)} + fixas ${brl(fixedTotal)}` : undefined} />
-        <button className="text-left" onClick={setIncomeFor}>
-          <Tile label="Renda" value={inc ? brl(inc) : '—'} sub={inc ? `${((grand / inc) * 100).toFixed(0)}% da renda · toque p/ editar` : 'toque para definir'} />
-        </button>
-        <Tile label={inc ? (left >= 0 ? 'Sobra' : 'Estouro') : 'Sobra'} value={inc ? brl(Math.abs(left)) : '—'} tone={inc ? (left >= 0 ? 'good' : 'bad') : undefined}
-          sub={inc ? (left >= 0 ? 'renda − gastos' : 'gastos acima da renda') : 'defina a renda'} />
-        <Tile label="Cortável" value={brl(flex)} sub={grand ? `${((flex / grand) * 100).toFixed(0)}% do gasto` : undefined} href="/analysis" />
-      </div>
+      {/* o destaque da tela: quanto sobra (ou quanto foi gasto, se a renda ainda não foi informada) */}
+      <section aria-label="Situação do mês" className="rounded-3xl border border-zinc-800 bg-zinc-900 p-5 md:p-8" style={{ boxShadow: 'var(--shadow-sheet)' }}>
+        <div className="flex flex-wrap items-start justify-between gap-x-6 gap-y-3">
+          <div className="min-w-0">
+            <p className="text-sm text-zinc-400">{inc ? (left >= 0 ? `Sobra de ${monthName(month)}` : `Estouro de ${monthName(month)}`) : `Gasto de ${monthName(month)}`}</p>
+            <p className={`mt-1.5 break-words text-[2.75rem] font-semibold leading-none tracking-tight tabular-nums md:text-6xl ${inc && left < 0 ? 'text-red-400' : ''}`}>{brl(inc ? Math.abs(left) : grand)}</p>
+            <p className="mt-3 text-sm text-zinc-400">
+              {inc ? `${Math.round((grand / inc) * 100)}% da renda já foi gasto.` : (
+                <><button type="button" onClick={setIncomeFor} className="font-medium text-emerald-500 underline underline-offset-4">Informe a renda do mês</button> para ver quanto sobra.</>
+              )}
+            </p>
+          </div>
+          {delta != null && (
+            <span className={`inline-flex items-center gap-1 rounded-full border px-2.5 py-1 text-xs font-medium ${delta > 0 ? 'border-amber-500/40 text-amber-400' : 'border-emerald-500/40 text-emerald-400'}`}
+              title="Gasto total contra o mês anterior">
+              {delta > 0 ? <ArrowUp size={13} aria-hidden /> : <ArrowDown size={13} aria-hidden />}
+              {Math.abs(Math.round(delta * 100))}% {delta > 0 ? 'a mais' : 'a menos'} que no mês anterior
+            </span>
+          )}
+        </div>
+        {inc > 0 && (
+          <div className="mt-6 h-2.5 overflow-hidden rounded-full bg-zinc-800" role="progressbar" aria-valuemin={0} aria-valuemax={100}
+            aria-valuenow={Math.min(Math.round((grand / inc) * 100), 100)} aria-label="Quanto da renda já foi gasto">
+            <div className={`h-full rounded-full ${left < 0 ? 'bg-red-500' : grand / inc >= 0.8 ? 'bg-amber-500' : 'bg-emerald-500'}`} style={{ width: `${Math.min((grand / inc) * 100, 100)}%` }} />
+          </div>
+        )}
+        <dl className="mt-6 divide-y divide-zinc-800 border-t border-zinc-800 sm:grid sm:grid-cols-3 sm:divide-x sm:divide-y-0">
+          <div className="flex items-baseline justify-between gap-3 py-3 sm:block sm:pb-0 sm:pl-0 sm:pr-5 sm:pt-5">
+            <dt className="text-sm text-zinc-400">Gasto</dt>
+            <dd className="whitespace-nowrap text-base font-semibold tabular-nums sm:mt-0.5 sm:text-xl">{brl(grand)}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3 py-3 sm:block sm:px-5 sm:pb-0 sm:pt-5">
+            <dt className="flex items-center gap-1 text-sm text-zinc-400">Renda
+              <button type="button" onClick={setIncomeFor} className="grid size-6 place-items-center rounded-md text-zinc-500 hover:bg-zinc-800 hover:text-zinc-100" aria-label={inc ? 'Editar a renda do mês' : 'Informar a renda do mês'}><Pencil size={13} aria-hidden /></button>
+            </dt>
+            <dd className="whitespace-nowrap text-base font-semibold tabular-nums sm:mt-0.5 sm:text-xl">{inc ? brl(inc) : '—'}</dd>
+          </div>
+          <div className="flex items-baseline justify-between gap-3 py-3 sm:block sm:pb-0 sm:pl-5 sm:pr-0 sm:pt-5">
+            <dt className="text-sm text-zinc-400">Cortável <Link href="/analysis" className="ml-1 text-xs text-emerald-500 underline underline-offset-2">ver onde</Link></dt>
+            <dd className="whitespace-nowrap text-base font-semibold tabular-nums sm:mt-0.5 sm:text-xl">{brl(flex)}</dd>
+          </div>
+        </dl>
+        {fixedTotal > 0 && <p className="mt-3 text-xs text-zinc-500">O gasto soma os cartões ({brl(view.total)}) e as contas fixas ({brl(fixedTotal)}).</p>}
+      </section>
 
-      {view.pending.length > 0 && (
-        <Link href={`/transactions?filtro=sem-categoria&mes=${month}`}
-          className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-          <span><b>{view.pending.length} {view.pending.length === 1 ? 'compra sem categoria' : 'compras sem categoria'}</b> ({brl(sumCents(view.pending))}) — categorize para a análise ficar correta</span>
-          <span className="shrink-0 text-amber-300">Categorizar →</span>
-        </Link>
-      )}
-
-      {(due.overdue.length > 0 || due.soon.length > 0) && (
-        <Link href="/calendar" className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${due.overdue.length ? 'border-red-500/40 bg-red-500/10' : 'border-sky-500/30 bg-sky-500/10'}`}>
-          <span className="min-w-0">
-            {due.overdue.length > 0 && (
-              <span className="block"><b>{due.overdue.length === 1 ? '1 vencimento atrasado' : `${due.overdue.length} vencimentos atrasados`}:</b> {due.overdue.slice(0, 3).map((e) => `${e.label} (${dueLabel(e.inDays)})`).join(', ')}</span>
-            )}
-            {due.soon.length > 0 && (
-              <span className="block"><b>Vence em breve:</b> {due.soon.slice(0, 3).map((e) => `${e.label} (${dueLabel(e.inDays).replace('vence ', '')}${e.cents != null ? `, ${brl(e.cents)}` : ''})`).join(', ')}</span>
-            )}
-          </span>
-          <span className="shrink-0 text-zinc-300">Calendário →</span>
-        </Link>
-      )}
-
-      {overGoals.length > 0 && (
-        <Link href="/goals" className="flex items-center justify-between gap-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm">
-          <span>
-            <b>{overGoals.length === 1 ? '1 categoria passou' : `${overGoals.length} categorias passaram`} da meta</b>
-            {' — '}{overGoals.slice(0, 3).map((g) => `${g.name} (+${brl(g.over)})`).join(', ')}
-          </span>
-          <span className="shrink-0 text-red-300">Ver metas →</span>
-        </Link>
+      {(view.pending.length > 0 || due.overdue.length > 0 || due.soon.length > 0 || overGoals.length > 0) && (
+        <div className="space-y-2">
+          {due.overdue.length > 0 && (
+            <Notice tone="danger" icon={CalendarClock} href="/calendar">
+              <b>{due.overdue.length === 1 ? '1 vencimento atrasado' : `${due.overdue.length} vencimentos atrasados`}:</b> {due.overdue.slice(0, 3).map((e) => `${e.label} (${dueLabel(e.inDays)})`).join(', ')}
+            </Notice>
+          )}
+          {due.soon.length > 0 && (
+            <Notice tone="info" icon={CalendarClock} href="/calendar">
+              <b>Vence em breve:</b> {due.soon.slice(0, 3).map((e) => `${e.label} (${dueLabel(e.inDays).replace('vence ', '')}${e.cents != null ? `, ${brl(e.cents)}` : ''})`).join(', ')}
+            </Notice>
+          )}
+          {overGoals.length > 0 && (
+            <Notice tone="danger" icon={Target} href="/goals">
+              <b>{overGoals.length === 1 ? '1 categoria passou' : `${overGoals.length} categorias passaram`} da meta:</b> {overGoals.slice(0, 3).map((g) => `${g.name} (+${brl(g.over)})`).join(', ')}
+            </Notice>
+          )}
+          {view.pending.length > 0 && (
+            <Notice tone="warn" icon={AlertCircle} href={`/transactions?filtro=sem-categoria&mes=${month}`}>
+              <b>{view.pending.length} {view.pending.length === 1 ? 'compra sem categoria' : 'compras sem categoria'}</b> ({brl(sumCents(view.pending))}). Categorize para a análise ficar correta.
+            </Notice>
+          )}
+        </div>
       )}
 
       {inc > 0 && (
-        <Section title="Como a renda é usada" hint={`Renda de ${monthLabel(month)}: ${brl(inc)}${left < 0 ? ' — os gastos passaram da renda.' : '.'}`}>
+        <Section title="Como a renda é usada" hint={left < 0 ? 'Os gastos passaram da renda do mês.' : 'Quanto vai para cartões e contas fixas, e quanto sobra.'}>
           <Donut slices={incomeSlices} centerLabel={left >= 0 ? 'Sobra' : 'Estouro'} centerValue={brl(Math.abs(left))} centerTone={left < 0 ? 'bad' : undefined} />
         </Section>
       )}
@@ -223,14 +236,9 @@ export default function Dashboard() {
         <StackedColumns months={view.monthsAsc} series={chartSeries} data={chartData} marker={Object.keys(income).length ? income : undefined} markerLabel="Renda" />
       </Section>
 
-      <div className="grid gap-4 md:grid-cols-2">
+      <div className="grid gap-8 md:grid-cols-2 md:gap-x-10">
         <Section title="Por categoria" hint="Compras no cartão, em reais e % do total no cartão.">
-          <div className="mb-3 inline-flex rounded-lg border border-zinc-700 p-0.5 text-sm" role="group" aria-label="Tipo de gráfico">
-            {([['donut', 'Rosca'], ['bars', 'Barras']] as const).map(([id, label]) => (
-              <button key={id} type="button" aria-pressed={catView === id} onClick={() => pickCatView(id)}
-                className={`rounded-md px-3 py-1 ${catView === id ? 'bg-zinc-800 text-white' : 'text-zinc-400'}`}>{label}</button>
-            ))}
-          </div>
+          <Segmented className="mb-4" label="Tipo de gráfico" value={catView} onChange={pickCatView} options={[{ value: 'donut', label: 'Rosca' }, { value: 'bars', label: 'Barras' }]} />
           {catView === 'donut'
             ? <Donut stacked slices={catSlices} centerLabel="No cartão" centerValue={brl(catTotal)} />
             : <HBars items={view.byCategory.slice(0, 10).map((s) => ({ key: s.key, label: s.key, cents: s.cents, count: s.count }))} />}
@@ -280,14 +288,14 @@ export default function Dashboard() {
           {monthBills.length > 0 && (
             <details className="group rounded-lg border border-zinc-800">
               <summary className="flex cursor-pointer list-none items-center gap-3 p-3">
-                <i className="size-3 shrink-0 rounded-sm" style={{ background: FIXED_COLOR }} aria-hidden />
+                <i className="size-3 shrink-0 rounded-sm" style={{ background: palette().fixed }} aria-hidden />
                 <span className="min-w-0 flex-1">
                   <span className="flex items-baseline justify-between gap-2">
                     <b className="truncate">Contas fixas</b>
                     <span className="tabular-nums">{brl(fixedTotal)}</span>
                   </span>
                   <span className="mt-1 block h-1.5 rounded-full bg-zinc-800">
-                    <span className="block h-1.5 rounded-full" style={{ width: `${grand ? Math.max((fixedTotal / grand) * 100, 1) : 0}%`, background: FIXED_COLOR }} />
+                    <span className="block h-1.5 rounded-full" style={{ width: `${grand ? Math.max((fixedTotal / grand) * 100, 1) : 0}%`, background: palette().fixed }} />
                   </span>
                   <span className="mt-1.5 block text-xs text-zinc-500">{grand ? `${((fixedTotal / grand) * 100).toFixed(0)}% do mês · ` : ''}{monthBills.length} {monthBills.length === 1 ? 'conta' : 'contas'}{monthBills.some((b) => b.estimated) ? ' · inclui valores estimados' : ''}</span>
                 </span>
@@ -303,7 +311,7 @@ export default function Dashboard() {
                   </li>
                 ))}
               </ul>
-              <Link href="/bills" className="block border-t border-zinc-800 px-3 py-2 text-xs text-emerald-400">Editar contas fixas →</Link>
+              <Link href="/bills" className="block border-t border-zinc-800 px-3 py-2 text-xs text-emerald-400">Editar contas fixas</Link>
             </details>
           )}
         </div>
@@ -311,9 +319,9 @@ export default function Dashboard() {
 
       {futureTotal > 0 && (
         <Section title="Parcelas já contratadas" hint={`Compras parceladas da fatura de ${monthLabel(month)} que ainda vão cair: ${brl(futureTotal)} nos próximos 6 meses (considera só o que já está nesta fatura).`}>
-          <StackedColumns months={view.future.map((f) => f.month)} series={[{ key: 'p', name: 'Parcelas', color: SERIES[0] }]}
+          <StackedColumns months={view.future.map((f) => f.month)} series={[{ key: 'p', name: 'Parcelas', color: palette().rankBar }]}
             data={Object.fromEntries(view.future.map((f) => [f.month, { p: f.cents }]))} height={180} />
-          <Link href="/installments" className="mt-2 block text-sm text-emerald-400">Ver o que cai em cada mês →</Link>
+          <Link href="/installments" className="mt-2 block text-sm text-emerald-400">Ver o que cai em cada mês</Link>
         </Section>
       )}
     </div>

@@ -4,6 +4,7 @@ import { createClient } from '@/lib/supabase/client'
 import { useBills, type Bill } from '@/hooks/useBills'
 import { brl, toCents, toInput } from '@/lib/money'
 import { friendlyError } from '@/lib/errors'
+import { PageHeader } from '@/components/ui'
 
 export default function Bills() {
   const supabase = createClient()
@@ -37,7 +38,7 @@ export default function Bills() {
 
   return (
     <div className="space-y-4">
-      <h1 className="text-xl font-semibold">Contas fixas e variáveis</h1>
+      <PageHeader title="Contas fixas e variáveis" description="Aluguel, internet, luz… entram no total do mês e no Calendário." />
       <div className="card space-y-3">
         <div className="flex flex-wrap gap-2">
           <input className="input min-w-0 basis-full md:basis-0 md:flex-1" placeholder="Conta (ex: Aluguel, Energia)" value={name} onChange={(e) => setName(e.target.value)} />
@@ -82,7 +83,7 @@ export default function Bills() {
         </ul>
       )}
       <p className="text-right text-sm text-zinc-400">
-        Fixas: <b className="text-white">{brl(fixed)}</b>{est > 0 && <> · variáveis (estimativa): <b className="text-white">~{brl(est)}</b></>}
+        Fixas: <b className="text-zinc-100">{brl(fixed)}</b>{est > 0 && <> · variáveis (estimativa): <b className="text-zinc-100">~{brl(est)}</b></>}
       </p>
     </div>
   )

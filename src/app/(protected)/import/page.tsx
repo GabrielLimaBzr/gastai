@@ -211,7 +211,7 @@ function PreviewHeader({ p, onMonth }: { p: Preview; onMonth: (m: string) => voi
   const ok = p.declaredTotal != null && p.declaredTotal === sum
   return (
     <div className="space-y-1 text-sm">
-      <p>{p.bank && <span className="mr-2 rounded bg-zinc-800 px-2 py-0.5 text-xs uppercase">{p.bank}</span>}
+      <p>{p.bank && <span className="mr-2 rounded-lg bg-zinc-800 px-2 py-0.5 text-xs font-medium">{isKnownBank(p.bank) ? BANK_LABEL[p.bank] : p.bank}</span>}
         {p.txs.length} lançamentos · {brl(sum)}</p>
       {p.declaredTotal != null && (
         <p className={ok ? 'text-emerald-400' : 'text-amber-300'}>
