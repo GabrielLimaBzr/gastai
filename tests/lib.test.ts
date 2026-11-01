@@ -153,3 +153,44 @@ describe('parcelas futuras detalhadas', () => {
     expect(e.map((x) => [x.row.description, x.left, x.endMonth, x.remainingCents])).toEqual([['LOJA', 1, '2026-11', 300], ['BMB', 2, '2026-12', 2000]])
   })
 })
+
+import { accountMatchesBank, matchAccount, nubankBilledMonth } from '../src/lib/bank'
+
+describe('banco x cartão', () => {
+  const accs = [{ id: '1', name: 'Cresol' }, { id: '2', name: 'Santander Elite' }, { id: '3', name: 'Cartão Nubank Roxinho' }]
+  it('acha o cartão pelo banco da fatura', () => {
+    expect(matchAccount(accs, 'nubank')?.id).toBe('3')
+    expect(matchAccount(accs, 'santander')?.id).toBe('2')
+    expect(matchAccount(accs, 'cresol')?.id).toBe('1')
+    expect(matchAccount([{ id: '1', name: 'Cresol' }], 'nubank')).toBeUndefined() // não cai no 1º da lista
+    expect(matchAccount(accs, 'generic')).toBeUndefined()
+  })
+  it('detecta cartão que não combina com o banco', () => {
+    expect(accountMatchesBank('Cresol', 'nubank')).toBe(false)
+    expect(accountMatchesBank('NUBANK', 'nubank')).toBe(true)
+  })
+  it('mês da fatura do Nubank vem do nome do arquivo', () => {
+    expect(nubankBilledMonth('Nubank_2026-11-09.csv', [])).toBe('2026-11')
+    expect(nubankBilledMonth('fatura.csv', [{ occurred_on: '2026-12-20', description: 'x', amount_cents: 1 }])).toBe('2027-01')
+  })
+})
+
+import { detectLocale, formatBytes } from '../src/lib/i18n'
+
+describe('idioma do aparelho', () => {
+  it('escolhe o primeiro idioma conhecido', () => {
+    expect(detectLocale(['pt-BR', 'en-US'])).toBe('pt')
+    expect(detectLocale(['en-GB'])).toBe('en')
+    expect(detectLocale(['fr-FR', 'es-MX', 'en'])).toBe('es')
+  })
+  it('cai no português quando não conhece', () => {
+    expect(detectLocale(['ja-JP'])).toBe('pt')
+    expect(detectLocale(undefined)).toBe('pt')
+    expect(detectLocale([])).toBe('pt')
+  })
+  it('formata tamanho de arquivo', () => {
+    expect(formatBytes(512, 'pt')).toBe('512 B')
+    expect(formatBytes(2048, 'en')).toBe('2 KB')
+    expect(formatBytes(1_572_864, 'pt')).toBe('1,5 MB')
+  })
+})

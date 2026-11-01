@@ -44,7 +44,9 @@ export function Nav({ email }: { email?: string }) {
       </header>
 
       {/* Celular: título no topo + barra de abas embaixo (alcance do polegar) */}
-      <header className="mb-4 flex items-center gap-2 md:hidden">
+      <header className="sticky top-0 z-30 -mx-4 mb-4 flex items-center gap-2.5 border-b border-zinc-900 bg-zinc-950/95 px-4 pb-3 pt-[calc(0.75rem+env(safe-area-inset-top))] backdrop-blur md:hidden">
+        {/* eslint-disable-next-line @next/next/no-img-element */}
+        <img src="/icon-192.png" alt="" width={28} height={28} className="size-7 rounded-lg" />
         <span className="text-lg font-semibold text-emerald-400">GastAI</span>
       </header>
       <nav className="safe-bottom fixed inset-x-0 bottom-0 z-40 border-t border-zinc-800 bg-zinc-950/95 backdrop-blur md:hidden" aria-label="Navegação">

@@ -8,7 +8,7 @@ export default async function ProtectedLayout({ children }: { children: React.Re
   if (!user) redirect('/login')
 
   return (
-    <div className="mx-auto max-w-5xl px-4 pb-24 pt-4 md:py-6">
+    <div className="mx-auto max-w-5xl px-4 pb-[calc(6rem+env(safe-area-inset-bottom))] md:py-6 md:pb-6">
       <Nav email={user.email} />
       {children}
     </div>

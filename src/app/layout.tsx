@@ -4,7 +4,7 @@ import './globals.css'
 export const metadata: Metadata = {
   title: 'GastAI',
   description: 'Gestão de gastos pessoal',
-  appleWebApp: { capable: true, title: 'GastAI', statusBarStyle: 'black-translucent' },
+  appleWebApp: { capable: true, title: 'GastAI', statusBarStyle: 'black' },
 }
 
 export const viewport: Viewport = { themeColor: '#09090b', width: 'device-width', initialScale: 1, viewportFit: 'cover' }
