@@ -425,3 +425,35 @@ describe('validação do cadastro', () => {
     expect(validateAuth('in', { email: 'a@b.com', password: '123', confirm: '' })).toEqual({})
   })
 })
+
+import { buildSteps, progress, type Facts } from '../src/lib/onboarding'
+
+describe('guia de primeiros passos', () => {
+  const none: Facts = { statements: false, cards: 0, cardsMissingDueDay: 0, categorized: false, income: false, bills: false, goal: false, payment: false }
+  it('usuário novo: nada feito, o próximo passo é importar', () => {
+    const p = progress(buildSteps(none))
+    expect(p).toMatchObject({ done: 0, total: 7, essentialsDone: false, allDone: false })
+    expect(p.next?.id).toBe('import')
+  })
+  it('os passos se marcam sozinhos pelos dados e o próximo avança', () => {
+    const s = buildSteps({ ...none, statements: true, cards: 3, cardsMissingDueDay: 1 })
+    expect(s.filter((x) => x.done).map((x) => x.id)).toEqual(['import'])
+    expect(progress(s).next?.id).toBe('cards') // ainda falta o vencimento de um cartão
+    expect(buildSteps({ ...none, statements: true, cards: 3, cardsMissingDueDay: 0 }).find((x) => x.id === 'cards')!.done).toBe(true)
+  })
+  it('sem cartões, o passo dos vencimentos manda importar antes', () => {
+    const c = buildSteps(none).find((x) => x.id === 'cards')!
+    expect(c.href).toBe('/import')
+    expect(c.done).toBe(false)
+  })
+  it('os essenciais vêm antes dos opcionais', () => {
+    const f: Facts = { statements: true, cards: 1, cardsMissingDueDay: 0, categorized: true, income: true, bills: true, goal: false, payment: false }
+    const p = progress(buildSteps(f))
+    expect(p.essentialsDone).toBe(true)
+    expect(p.allDone).toBe(false)
+    expect(p.next).toMatchObject({ id: 'goal', optional: true })
+  })
+  it('tudo feito', () => {
+    expect(progress(buildSteps({ statements: true, cards: 1, cardsMissingDueDay: 0, categorized: true, income: true, bills: true, goal: true, payment: true }))).toMatchObject({ done: 7, allDone: true, next: undefined })
+  })
+})

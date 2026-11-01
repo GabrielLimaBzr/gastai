@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { BarChart3, CalendarClock, CalendarDays, Layers, ListOrdered, LogOut, MoreHorizontal, PieChart, Target, TrendingUp, TriangleAlert, Upload, X } from 'lucide-react'
+import { BarChart3, CalendarClock, CalendarDays, Layers, ListOrdered, LogOut, MoreHorizontal, PieChart, Rocket, Target, TrendingUp, TriangleAlert, Upload, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const MAIN = [
@@ -12,6 +12,7 @@ const MAIN = [
   { href: '/import', label: 'Importar', Icon: Upload },
 ] as const
 const MORE = [
+  { href: '/start', label: 'Primeiros passos', Icon: Rocket },
   { href: '/trends', label: 'Tendências', Icon: TrendingUp },
   { href: '/goals', label: 'Metas', Icon: Target },
   { href: '/calendar', label: 'Calendário', Icon: CalendarDays },

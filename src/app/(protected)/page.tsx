@@ -6,6 +6,8 @@ import { useAccounts, useTransactions, type TxRow } from '@/hooks/useData'
 import { useCategories } from '@/hooks/useCategories'
 import { usePayments } from '@/hooks/usePayments'
 import { useBills } from '@/hooks/useBills'
+import { QuickStart } from '@/components/QuickStart'
+import { Welcome } from '@/components/Welcome'
 import { attention, buildEvents, dueLabel } from '@/lib/calendar'
 import { Donut, FIXED_COLOR, HBars, StackedColumns, monthLabel, type DonutSlice, type Series } from '@/components/charts'
 import { RING, RING_OTHER, SERIES } from '@/lib/palette'
@@ -106,8 +108,14 @@ export default function Dashboard() {
     setIncome((p) => ({ ...p, [month]: cents }))
   }
 
+  // atalho do guia de primeiros passos: /?renda=1 abre a pergunta da renda do mês
+  useEffect(() => {
+    if (loading || !month) return
+    if (new URLSearchParams(location.search).get('renda') === '1') { history.replaceState(null, '', '/'); setIncomeFor() }
+  }, [loading, month]) // eslint-disable-line react-hooks/exhaustive-deps
+
   if (loading || !ready || !pay.ready || !billsReady) return <p className="text-zinc-500">Carregando…</p>
-  if (!months.length) return <p className="text-zinc-400">Nenhum dado ainda. Comece em <b>Importar</b>.</p>
+  if (!months.length) return <Welcome />
 
   // contas fixas e variáveis do mês (variável: valor informado, ou o do mês anterior como estimativa); entram no total, na sobra e no gráfico
   const monthBills = forMonth(month)
@@ -156,6 +164,8 @@ export default function Dashboard() {
           {months.map((m) => <option key={m} value={m}>{monthLabel(m)}</option>)}
         </select>
       </div>
+
+      <QuickStart />
 
       <div className="grid grid-cols-2 gap-3 md:grid-cols-4">
         <Tile label="Gasto no mês" value={brl(grand)}
