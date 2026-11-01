@@ -18,6 +18,10 @@ export default function Installments() {
   const [base, setBase] = useState('')
   const [income, setIncome] = useState(0)
   const [fixedTotal, setFixedTotal] = useState(0)
+  // a renda esticava o eixo e achatava as colunas das parcelas: por padrão fica de fora do gráfico
+  const [showIncome, setShowIncome] = useState(false)
+  useEffect(() => { try { setShowIncome(localStorage.getItem('gastai:inst-income') === '1') } catch { /* sem storage */ } }, [])
+  function toggleIncome(on: boolean) { setShowIncome(on); try { localStorage.setItem('gastai:inst-income', on ? '1' : '0') } catch { /* sem storage */ } }
 
   const months = useMemo(() => monthsDesc(rows), [rows])
   useEffect(() => { if (!base && months.length) setBase(months[0]) }, [months, base])
@@ -54,7 +58,7 @@ export default function Installments() {
     chartData[m.month] = Object.fromEntries(groupSum(m.items, (i) => i.row.account_id ?? '', (i) => i.cents).map((g) => [g.key, g.cents]))
     if (fixedTotal > 0) chartData[m.month][FIXED] = fixedTotal
   }
-  const marker = income > 0 ? Object.fromEntries(view.future.map((m) => [m.month, income])) : undefined
+  const marker = income > 0 && showIncome ? Object.fromEntries(view.future.map((m) => [m.month, income])) : undefined
   const first = view.future[0]
   const peak = view.future.reduce((a, m) => (m.cents > a.cents ? m : a), view.future[0] ?? { month: '', cents: 0 })
 
@@ -82,10 +86,18 @@ export default function Installments() {
 
           <section className="card">
             <h2 className="font-medium">Já comprometido por mês</h2>
-            <p className="mb-3 text-xs text-zinc-500">
-              Parcelas por cartão{fixedTotal > 0 ? ' + contas fixas' : ''}
-              {income > 0 ? `; a linha branca é a renda de ${monthLabel(base)}` : ''}.
-            </p>
+            <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs text-zinc-500">
+                Parcelas por cartão{fixedTotal > 0 ? ' + contas fixas' : ''}
+                {marker ? `; a linha branca é a renda de ${monthLabel(base)}` : ''}.
+              </p>
+              {income > 0 && (
+                <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-400">
+                  <input type="checkbox" className="size-4 accent-emerald-500" checked={showIncome} onChange={(e) => toggleIncome(e.target.checked)} />
+                  Mostrar a renda no gráfico
+                </label>
+              )}
+            </div>
             <StackedColumns months={view.future.map((m) => m.month)} series={series} data={chartData} marker={marker} markerLabel={`Renda de ${monthLabel(base)}`} />
           </section>
 
