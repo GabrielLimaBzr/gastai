@@ -260,3 +260,61 @@ describe('cor escolhida pelo usuário', () => {
     expect(colorWarnings('#3987e5', [{ name: 'Nubank', color: '#a05ae0' }])).toEqual([])
   })
 })
+
+import { categoryByMonth, categorySeries, compareMonths } from '../src/lib/trends'
+import { goalStatus, suggestGoal } from '../src/lib/goals'
+import { buildEvents, clampDay, daysInMonth, daysUntil, monthGrid } from '../src/lib/calendar'
+
+describe('tendências por categoria', () => {
+  const row = (id: string, m: string, c: number, desc = 'X') => ({ id, occurred_on: '2026-01-01', billed_month: `${m}-01`, description: desc, amount_cents: c, installment_no: null, installment_total: null, category_id: null, account_id: 'a' })
+  it('agrupa por mês e categoria e compara com o mês anterior', () => {
+    const by = categoryByMonth([row('1', '2026-09', 1000, 'A'), row('2', '2026-10', 1500, 'A'), row('3', '2026-10', 400, 'B'), row('4', '2026-09', 700, 'C')], (r) => r.description)
+    const d = compareMonths(by.get('2026-10'), by.get('2026-09'))
+    expect(d.map((x) => [x.name, x.delta])).toEqual([['C', -700], ['A', 500], ['B', 400]])
+    expect(d.find((x) => x.name === 'A')!.pct).toBeCloseTo(0.5)
+    expect(d.find((x) => x.name === 'B')!.pct).toBeNull() // categoria nova
+  })
+  it('série de uma categoria devolve 0 nos meses sem gasto', () => {
+    const by = categoryByMonth([row('1', '2026-09', 1000, 'A'), row('2', '2026-11', 300, 'A')], (r) => r.description)
+    expect(categorySeries(by, ['2026-09', '2026-10', '2026-11'], 'A')).toEqual([1000, 0, 300])
+  })
+})
+
+describe('metas por categoria', () => {
+  it('classifica dentro / perto / acima da meta', () => {
+    expect(goalStatus(5000, 10000)).toMatchObject({ state: 'ok', left: 5000 })
+    expect(goalStatus(8000, 10000)).toMatchObject({ state: 'near' })
+    expect(goalStatus(10000, 10000)).toMatchObject({ state: 'near', left: 0 }) // exatamente na meta ainda não passou
+    expect(goalStatus(12500, 10000)).toMatchObject({ state: 'over', left: -2500 })
+  })
+  it('sugere a média dos últimos 3 meses menos 10%', () => {
+    expect(suggestGoal([100000, 200000, 150000, 150000])).toBe(150000) // média(200k,150k,150k)=166.667 → -10% = 150.000
+    expect(suggestGoal([0, 0])).toBeNull()
+  })
+})
+
+describe('calendário de vencimentos', () => {
+  it('conta dias e limita o dia ao fim do mês', () => {
+    expect(daysInMonth(2026, 2)).toBe(28)
+    expect(clampDay(31, 2026, 2)).toBe(28)
+    expect(daysUntil(new Date(2026, 9, 30), 2026, 11, 7)).toBe(8)
+    expect(daysUntil(new Date(2026, 9, 30), 2026, 10, 28)).toBe(-2)
+  })
+  it('monta a grade começando no domingo', () => {
+    const g = monthGrid(2026, 11) // 1º de novembro/2026 é domingo
+    expect(g[0][0]).toBe(1)
+    expect(g.every((w) => w.length === 7)).toBe(true)
+    expect(g.flat().filter(Boolean)).toHaveLength(30)
+  })
+  it('lista faturas (reais e projetadas) e contas fixas por dia', () => {
+    const r = (id: string, acc: string, c: number, n: number | null, tot: number | null) => ({ id, occurred_on: '2026-08-03', billed_month: '2026-10-01', description: id, amount_cents: c, installment_no: n, installment_total: tot, category_id: null, account_id: acc })
+    const rows = [r('a', 'c1', 5000, null, null), r('b', 'c1', 2000, 1, 3), r('c', 'c2', 1000, 2, 2)]
+    const input = { accounts: [{ id: 'c1', name: 'Cresol', due_day: 7 }, { id: 'c2', name: 'Nubank', due_day: 10 }, { id: 'c3', name: 'Sem dia', due_day: null }], rows,
+      bills: [{ name: 'Aluguel', expected_cents: 170000, due_day: 28 }], colorOf: () => '#fff', billColor: '#aaa' }
+    const out = buildEvents({ ...input, ym: '2026-10' })
+    expect(out.map((e) => [e.day, e.label, e.cents])).toEqual([[7, 'Cresol', 7000], [10, 'Nubank', 1000], [28, 'Aluguel', 170000]])
+    const nov = buildEvents({ ...input, ym: '2026-11' }) // mês futuro: só as parcelas já contratadas
+    expect(nov.find((e) => e.label === 'Cresol')).toMatchObject({ cents: 2000, note: 'só as parcelas já contratadas' })
+    expect(nov.find((e) => e.label === 'Nubank')).toMatchObject({ cents: null, note: 'ainda sem fatura' })
+  })
+})

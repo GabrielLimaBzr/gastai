@@ -122,6 +122,11 @@ export default function Dashboard() {
   const delta = prevGrand ? (grand - prevGrand) / prevGrand : null
   // fatias das roscas: no máximo 5 categorias + "Outras" (cores validadas para fatias vizinhas)
   const catSlices: DonutSlice[] = foldTop(view.byCategory, 5).map((s, i) => ({ key: s.key, label: s.label, cents: s.cents, color: s.folded ? RING_OTHER : RING[i], note: `${s.count}x` }))
+  // categorias que já passaram da meta mensal neste mês
+  const overGoals = view.byCategory.flatMap((s) => {
+    const goal = cats.find((c) => c.name === s.key)?.goal_cents
+    return goal && s.cents > goal ? [{ name: s.key, over: s.cents - goal }] : []
+  })
   const catTotal = catSlices.reduce((s, x) => s + x.cents, 0)
   const cardSlices: DonutSlice[] = [
     ...view.cards.map((c) => ({ key: c.key, label: c.name, cents: c.total, color: c.color })),
@@ -163,6 +168,16 @@ export default function Dashboard() {
           className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
           <span><b>{view.pending.length} compras sem categoria</b> ({brl(sumCents(view.pending))}) — categorize para a análise ficar correta</span>
           <span className="shrink-0 text-amber-300">Categorizar →</span>
+        </Link>
+      )}
+
+      {overGoals.length > 0 && (
+        <Link href="/goals" className="flex items-center justify-between gap-3 rounded-xl border border-red-500/40 bg-red-500/10 px-4 py-3 text-sm">
+          <span>
+            <b>{overGoals.length === 1 ? '1 categoria passou' : `${overGoals.length} categorias passaram`} da meta</b>
+            {' — '}{overGoals.slice(0, 3).map((g) => `${g.name} (+${brl(g.over)})`).join(', ')}
+          </span>
+          <span className="shrink-0 text-red-300">Ver metas →</span>
         </Link>
       )}
 

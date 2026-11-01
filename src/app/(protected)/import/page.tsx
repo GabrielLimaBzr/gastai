@@ -15,10 +15,10 @@ import { CardColors } from '@/components/CardColors'
 import { ImportedStatements } from '@/components/ImportedStatements'
 import type { Tx } from '@/lib/types'
 
-interface Account { id: string; name: string; color: string | null }
+interface Account { id: string; name: string; color: string | null; due_day: number | null }
 type Preview = {
   txs: Tx[]; source: 'pdf' | 'notion'; fileHash?: string
-  bank?: string; billedMonth?: string; declaredTotal?: number | null
+  bank?: string; billedMonth?: string; declaredTotal?: number | null; dueDay?: number
 }
 
 const CREATE = '__create__' // "criar o cartão do banco detectado ao salvar"
@@ -37,7 +37,7 @@ export default function Import() {
   const [reloadKey, setReloadKey] = useState(0)
 
   async function loadAccounts(): Promise<Account[]> {
-    const { data } = await supabase.from('accounts').select('id,name,color').order('created_at')
+    const { data } = await supabase.from('accounts').select('id,name,color,due_day').order('created_at')
     const list = (data as Account[]) ?? []
     setAccounts(list)
     return list
@@ -65,6 +65,7 @@ export default function Import() {
       setPreview({
         txs: parsed.txs, source: 'pdf', fileHash: await sha256Hex(buf), bank: parsed.bank,
         billedMonth: parsed.dueDate?.slice(0, 7), declaredTotal: parsed.statementTotalCents,
+        dueDay: parsed.dueDate ? Number(parsed.dueDate.slice(8, 10)) : undefined,
       })
       await pickAccount(parsed.bank)
       if (!parsed.txs.length) setMsg('Nenhum lançamento reconhecido. O layout deste banco precisa de um parser dedicado.')
@@ -108,6 +109,9 @@ export default function Import() {
         }).select('id').single()
         if (error) return setMsg(error.code === '23505' ? 'Esta fatura já foi importada (veja em "Faturas importadas").' : error.message)
         statementId = data.id
+        // o PDF traz a data de vencimento: guarda o dia no cartão (se ainda não tinha) para o calendário
+        const known = accounts.find((a) => a.id === accId)
+        if (preview.dueDay && !known?.due_day) await supabase.from('accounts').update({ due_day: preview.dueDay }).eq('id', accId)
       }
       const seen = new Map<string, number>()
       const rows = []

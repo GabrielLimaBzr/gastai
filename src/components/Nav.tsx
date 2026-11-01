@@ -2,7 +2,7 @@
 import { useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { BarChart3, CalendarClock, Layers, ListOrdered, LogOut, MoreHorizontal, PieChart, TriangleAlert, Upload, X } from 'lucide-react'
+import { BarChart3, CalendarClock, CalendarDays, Layers, ListOrdered, LogOut, MoreHorizontal, PieChart, Target, TrendingUp, TriangleAlert, Upload, X } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const MAIN = [
@@ -12,6 +12,9 @@ const MAIN = [
   { href: '/import', label: 'Importar', Icon: Upload },
 ] as const
 const MORE = [
+  { href: '/trends', label: 'Tendências', Icon: TrendingUp },
+  { href: '/goals', label: 'Metas', Icon: Target },
+  { href: '/calendar', label: 'Calendário', Icon: CalendarDays },
   { href: '/installments', label: 'Parcelas', Icon: Layers },
   { href: '/bills', label: 'Contas fixas', Icon: CalendarClock },
   { href: '/anomalies', label: 'Anomalias', Icon: TriangleAlert },
@@ -31,11 +34,11 @@ export function Nav({ email }: { email?: string }) {
   return (
     <>
       {/* Desktop: barra no topo */}
-      <header className="mb-6 hidden items-center gap-1 border-b border-zinc-800 pb-3 md:flex">
+      <header className="mb-6 hidden flex-wrap items-center gap-1 border-b border-zinc-800 pb-3 md:flex">
         <span className="mr-4 font-semibold text-emerald-400">GastAI</span>
         {[...MAIN, ...MORE].map(({ href, label }) => (
           <Link key={href} href={href}
-            className={`rounded-md px-3 py-1.5 text-sm ${active(href) ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'}`}>
+            className={`rounded-md px-2.5 py-1.5 text-sm ${active(href) ? 'bg-zinc-800 text-white' : 'text-zinc-400 hover:text-white'}`}>
             {label}
           </Link>
         ))}

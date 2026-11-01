@@ -35,14 +35,25 @@ export function useTransactions() {
   return { rows, setRows, loading, reload }
 }
 
-export interface Account { id: string; name: string; created_at: string; color: string | null }
+export interface Account { id: string; name: string; created_at: string; color: string | null; due_day: number | null }
 
 /** Cartões do usuário, na ordem de criação (a cor de cada cartão nos gráficos segue essa ordem). */
-export function useAccounts() {
+export function useAccountsFull() {
   const supabase = createClient()
   const [accounts, setAccounts] = useState<Account[]>([])
-  useEffect(() => {
-    supabase.from('accounts').select('id,name,created_at,color').order('created_at').then(({ data }) => setAccounts((data as Account[]) ?? []))
+  const reload = useCallback(async () => {
+    const { data } = await supabase.from('accounts').select('id,name,created_at,color,due_day').order('created_at')
+    setAccounts((data as Account[]) ?? [])
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-  return accounts
+  useEffect(() => { reload() }, [reload])
+
+  /** Dia do mês em que a fatura do cartão vence (null apaga). */
+  async function setDueDay(id: string, day: number | null) {
+    const { error } = await supabase.from('accounts').update({ due_day: day }).eq('id', id)
+    if (error) throw error
+    setAccounts((p) => p.map((a) => (a.id === id ? { ...a, due_day: day } : a)))
+  }
+  return { accounts, reload, setDueDay }
 }
+
+export const useAccounts = () => useAccountsFull().accounts
