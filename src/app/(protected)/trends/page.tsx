@@ -8,6 +8,7 @@ import { categorize, monthsDesc } from '@/lib/ledger'
 import { categoryByMonth, categorySeries, compareMonths } from '@/lib/trends'
 import { RING } from '@/lib/palette'
 import { brl } from '@/lib/money'
+import { useSharedMonth } from '@/contexts/month'
 
 // ↑ gasto subiu / ↓ gasto caiu: par quente/frio da paleta; o sentido também vai escrito (seta + sinal), nunca só a cor
 const UP = '#c98500', DOWN = '#199e70'
@@ -17,7 +18,6 @@ const pct = (p: number | null) => (p == null ? 'novo' : `${p >= 0 ? '+' : '−'}
 export default function Trends() {
   const { rows, loading } = useTransactions()
   const { cats, ready } = useCategories()
-  const [month, setMonth] = useState('')
   const [cat, setCat] = useState('')
 
   const catName = useMemo(() => new Map(cats.map((c) => [c.id, c.name])), [cats])
@@ -26,7 +26,7 @@ export default function Trends() {
     [rows, catName],
   )
   const months = useMemo(() => monthsDesc(rows), [rows])
-  useEffect(() => { if (!month && months.length) setMonth(months[0]) }, [months, month])
+  const [month, setMonth] = useSharedMonth(months, months[0] ?? '')
 
   // categorias ordenadas pelo total gasto em todo o histórico
   const names = useMemo(() => {

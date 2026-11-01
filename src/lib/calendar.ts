@@ -26,13 +26,15 @@ export interface DueEvent {
   cents: number | null // null = valor ainda desconhecido
   color: string
   note: string
+  variable?: boolean // conta variável (luz, água…): o valor muda todo mês
+  estimated?: boolean // o valor ainda é uma estimativa, não o da conta
 }
 
 export interface CalendarInput {
   ym: string // mês exibido (AAAA-MM)
   accounts: { id: string; name: string; due_day: number | null }[]
   rows: LedgerRow[]
-  bills: { id: string; name: string; expected_cents: number; due_day: number }[]
+  bills: { id: string; name: string; expected_cents: number; due_day: number; variable?: boolean; estimated?: boolean }[]
   colorOf: (accountId: string) => string
   billColor: string
 }
@@ -60,7 +62,13 @@ export function buildEvents({ ym, accounts, rows, bills, colorOf, billColor }: C
     }
     events.push({ day: clampDay(a.due_day, y, m), kind: 'card', ref: a.id, label: a.name, cents, color: colorOf(a.id), note })
   }
-  for (const b of bills) events.push({ day: clampDay(b.due_day, y, m), kind: 'bill', ref: b.id, label: b.name, cents: b.expected_cents, color: billColor, note: 'conta fixa' })
+  for (const b of bills) {
+    events.push({
+      day: clampDay(b.due_day, y, m), kind: 'bill', ref: b.id, label: b.name, cents: b.expected_cents, color: billColor,
+      note: b.variable ? (b.estimated ? 'conta variável · valor estimado' : 'conta variável · valor informado') : 'conta fixa',
+      variable: b.variable, estimated: b.variable && b.estimated,
+    })
+  }
   return events.sort((a, b) => a.day - b.day || a.label.localeCompare(b.label))
 }
 

@@ -9,6 +9,7 @@ import { brl, txMonth } from '@/lib/money'
 import { monthLabel } from '@/components/charts'
 import { cardStyle } from '@/lib/cards'
 import { createClient } from '@/lib/supabase/client'
+import { useSharedMonth } from '@/contexts/month'
 
 const CUT = 0.2 // meta de corte simulada sobre o gasto flexível
 
@@ -88,11 +89,10 @@ export default function Analysis() {
   const { rows, loading } = useTransactions()
   const accounts = useAccounts()
   const { cats, ready } = useCategories()
-  const [month, setMonth] = useState('')
   const [income, setIncome] = useState(0)
 
   const months = useMemo(() => [...new Set(rows.map(txMonth))].sort().reverse(), [rows])
-  useEffect(() => { if (!month && months.length) setMonth(months[0]) }, [months, month])
+  const [month, setMonth] = useSharedMonth(months, months[0] ?? '')
 
   useEffect(() => {
     if (!month) return

@@ -2,10 +2,12 @@
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccounts, useTransactions } from '@/hooks/useData'
+import { useBills } from '@/hooks/useBills'
 import { FIXED_COLOR, StackedColumns, monthLabel, type Series } from '@/components/charts'
 import { cardStyle } from '@/lib/cards'
 import { endingSchedule, futureDetail, groupSum, monthsDesc } from '@/lib/ledger'
 import { brl } from '@/lib/money'
+import { useSharedMonth } from '@/contexts/month'
 
 const FIXED = '__fixed__'
 
@@ -15,9 +17,9 @@ export default function Installments() {
   const supabase = createClient()
   const { rows, loading } = useTransactions()
   const accounts = useAccounts()
-  const [base, setBase] = useState('')
   const [income, setIncome] = useState(0)
-  const [fixedTotal, setFixedTotal] = useState(0)
+  const { bills: allBills, fixedFor, ready: billsReady } = useBills()
+  const anyFixed = allBills.length > 0
   // a renda esticava o eixo e achatava as colunas das parcelas: por padrão fica de fora do gráfico
   const [showIncome, setShowIncome] = useState(false)
   // "só cartões": tira as contas fixas do gráfico e da conta de comprometido, para ver apenas o que está parcelado nos cartões
@@ -28,12 +30,8 @@ export default function Installments() {
   function toggleIncome(on: boolean) { setShowIncome(on); try { localStorage.setItem('gastai:inst-income', on ? '1' : '0') } catch { /* sem storage */ } }
 
   const months = useMemo(() => monthsDesc(rows), [rows])
-  useEffect(() => { if (!base && months.length) setBase(months[0]) }, [months, base])
+  const [base, setBase] = useSharedMonth(months, months[0] ?? '')
 
-  useEffect(() => {
-    supabase.from('recurring_bills').select('expected_cents').eq('active', true)
-      .then(({ data }) => setFixedTotal((data ?? []).reduce((s, b) => s + b.expected_cents, 0)))
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!base) return
     supabase.from('income').select('amount_cents').eq('month', `${base}-01`)
@@ -48,10 +46,10 @@ export default function Installments() {
     return { future, schedule, remaining: future.reduce((s, m) => s + m.cents, 0) }
   }, [rows, base])
 
-  if (loading) return <p className="text-zinc-500">Carregando…</p>
+  if (loading || !billsReady) return <p className="text-zinc-500">Carregando…</p>
   if (!months.length) return <p className="text-zinc-400">Importe uma fatura para ver as parcelas.</p>
 
-  const withFixed = fixedTotal > 0 && !cardsOnly
+  const withFixed = anyFixed && !cardsOnly
   // cartões que ainda têm parcela futura (cores iguais às do Resumo) + contas fixas
   const cardIds = [...new Set(view.future.flatMap((m) => m.items.map((i) => i.row.account_id ?? '')))]
   const series: Series[] = [
@@ -61,7 +59,7 @@ export default function Installments() {
   const chartData: Record<string, Record<string, number>> = {}
   for (const m of view.future) {
     chartData[m.month] = Object.fromEntries(groupSum(m.items, (i) => i.row.account_id ?? '', (i) => i.cents).map((g) => [g.key, g.cents]))
-    if (withFixed) chartData[m.month][FIXED] = fixedTotal
+    if (withFixed) chartData[m.month][FIXED] = fixedFor(m.month) // conta variável: estimativa pelo último valor informado
   }
   const marker = income > 0 && showIncome ? Object.fromEntries(view.future.map((m) => [m.month, income])) : undefined
   const first = view.future[0]
@@ -93,11 +91,11 @@ export default function Installments() {
             <h2 className="font-medium">Já comprometido por mês</h2>
             <div className="mb-3 flex flex-wrap items-center justify-between gap-2">
               <p className="text-xs text-zinc-500">
-                Parcelas por cartão{withFixed ? ' + contas fixas' : fixedTotal > 0 ? ' (só cartões)' : ''}
+                Parcelas por cartão{withFixed ? ' + contas fixas' : anyFixed ? ' (só cartões)' : ''}
                 {marker ? `; a linha branca é a renda de ${monthLabel(base)}` : ''}.
               </p>
               <div className="flex flex-col gap-1.5">
-                {fixedTotal > 0 && (
+                {anyFixed && (
                   <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-400">
                     <input type="checkbox" className="size-4 accent-emerald-500" checked={cardsOnly} onChange={(e) => toggleCardsOnly(e.target.checked)} />
                     Mostrar apenas cartões
@@ -120,7 +118,7 @@ export default function Installments() {
             <div className="space-y-2">
               {view.future.map((m) => {
                 const byCard = groupSum(m.items, (i) => i.row.account_id ?? '', (i) => i.cents)
-                const committed = m.cents + (withFixed ? fixedTotal : 0)
+                const committed = m.cents + (withFixed ? fixedFor(m.month) : 0)
                 return (
                   <details key={m.month} className="group rounded-lg border border-zinc-800">
                     <summary className="cursor-pointer list-none p-3 [&::-webkit-details-marker]:hidden">

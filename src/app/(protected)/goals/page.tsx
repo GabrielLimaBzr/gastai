@@ -8,7 +8,8 @@ import { DEFAULT_NAMES } from '@/lib/categorize'
 import { categorize, monthsDesc } from '@/lib/ledger'
 import { goalStatus, suggestGoal, type GoalState } from '@/lib/goals'
 import { categoryByMonth, categorySeries } from '@/lib/trends'
-import { brl, toCents } from '@/lib/money'
+import { brl, toCents, toInput } from '@/lib/money'
+import { useSharedMonth } from '@/contexts/month'
 
 // estado = ícone + palavra + cor (nunca só a cor)
 const LOOK: Record<GoalState, { label: string; bar: string; text: string; Icon: typeof CheckCircle2 }> = {
@@ -20,7 +21,6 @@ const LOOK: Record<GoalState, { label: string; bar: string; text: string; Icon: 
 export default function Goals() {
   const { rows, loading } = useTransactions()
   const { cats, ready, setGoal } = useCategories()
-  const [month, setMonth] = useState('')
   const [name, setName] = useState('')
   const [value, setValue] = useState('')
   const [msg, setMsg] = useState('')
@@ -31,7 +31,7 @@ export default function Goals() {
     [rows, catName],
   )
   const months = useMemo(() => monthsDesc(rows), [rows])
-  useEffect(() => { if (!month && months.length) setMonth(months[0]) }, [months, month])
+  const [month, setMonth] = useSharedMonth(months, months[0] ?? '')
 
   const withGoal = cats.filter((c) => c.goal_cents).map((c) => ({ ...c, used: Math.max(byMonth.get(month)?.get(c.name) ?? 0, 0) }))
   const options = [...new Set([...DEFAULT_NAMES, ...cats.map((c) => c.name)])].filter((n) => !cats.find((c) => c.name === n)?.goal_cents)
@@ -49,7 +49,7 @@ export default function Goals() {
     await save(name, cents); setName(''); setValue('')
   }
   async function edit(n: string, current: number) {
-    const v = prompt(`Nova meta mensal para «${n}» (R$):`, String(current / 100).replace('.', ','))
+    const v = prompt(`Nova meta mensal para «${n}» (R$):`, toInput(current))
     if (!v) return
     const cents = toCents(v)
     if (cents > 0) await save(n, cents)
@@ -112,7 +112,7 @@ export default function Goals() {
           <button className="btn" onClick={add}>Definir meta</button>
         </div>
         {suggestion && (
-          <button className="text-left text-xs text-emerald-400" onClick={() => setValue(String(suggestion / 100).replace('.', ','))}>
+          <button className="text-left text-xs text-emerald-400" onClick={() => setValue(toInput(suggestion))}>
             Sugestão: {brl(suggestion)} (média dos últimos meses menos 10%) — toque para usar
           </button>
         )}

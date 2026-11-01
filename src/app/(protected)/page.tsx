@@ -5,17 +5,18 @@ import { createClient } from '@/lib/supabase/client'
 import { useAccounts, useTransactions, type TxRow } from '@/hooks/useData'
 import { useCategories } from '@/hooks/useCategories'
 import { usePayments } from '@/hooks/usePayments'
+import { useBills } from '@/hooks/useBills'
 import { attention, buildEvents, dueLabel } from '@/lib/calendar'
 import { Donut, FIXED_COLOR, HBars, StackedColumns, monthLabel, type DonutSlice, type Series } from '@/components/charts'
 import { RING, RING_OTHER, SERIES } from '@/lib/palette'
 import { categorize, flexibleCents, foldTop, futureInstallments, groupSum, merchantKey, monthsDesc, sumCents } from '@/lib/ledger'
 import { cardStyle } from '@/lib/cards'
 import { brl, monthKey, txMonth } from '@/lib/money'
+import { useSharedMonth } from '@/contexts/month'
 
 const NO_CARD = '__none__'
 const FIXED = '__fixed__'
 
-interface Bill { id: string; name: string; expected_cents: number; due_day: number }
 
 function Tile({ label, value, sub, note, href, tone }: { label: string; value: string; sub?: string; note?: string; href?: string; tone?: 'bad' | 'good' }) {
   const body = (
@@ -44,18 +45,12 @@ export default function Dashboard() {
   const { cats, ready } = useCategories()
   const pay = usePayments()
   const [income, setIncome] = useState<Record<string, number>>({})
-  const [month, setMonth] = useState('')
-  const [bills, setBills] = useState<Bill[]>([])
+  const { bills, forMonth, fixedFor, ready: billsReady } = useBills()
   const [catView, setCatView] = useState<'donut' | 'bars'>('donut')
 
   // preferência de visualização: só conveniência do aparelho, por isso localStorage com try/catch
   useEffect(() => { try { const v = localStorage.getItem('gastai:catview'); if (v === 'bars' || v === 'donut') setCatView(v) } catch { /* sem storage */ } }, [])
   function pickCatView(v: 'donut' | 'bars') { setCatView(v); try { localStorage.setItem('gastai:catview', v) } catch { /* sem storage */ } }
-
-  useEffect(() => {
-    supabase.from('recurring_bills').select('id,name,expected_cents,due_day').eq('active', true).order('due_day')
-      .then(({ data }) => setBills((data as Bill[]) ?? []))
-  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     supabase.from('income').select('month,amount_cents').then(({ data }) => {
@@ -66,7 +61,7 @@ export default function Dashboard() {
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const months = useMemo(() => monthsDesc(rows), [rows])
-  useEffect(() => { if (!month && months.length) setMonth(months[0]) }, [months, month])
+  const [month, setMonth] = useSharedMonth(months, months[0] ?? '')
 
   const catName = useMemo(() => new Map(cats.map((c) => [c.id, c.name])), [cats])
   const info = (r: TxRow) => categorize(r.description, r.category_id ? catName.get(r.category_id) : null)
@@ -111,17 +106,19 @@ export default function Dashboard() {
     setIncome((p) => ({ ...p, [month]: cents }))
   }
 
-  if (loading || !ready || !pay.ready) return <p className="text-zinc-500">Carregando…</p>
+  if (loading || !ready || !pay.ready || !billsReady) return <p className="text-zinc-500">Carregando…</p>
   if (!months.length) return <p className="text-zinc-400">Nenhum dado ainda. Comece em <b>Importar</b>.</p>
 
-  // contas fixas valem todo mês (o valor esperado de hoje); entram no total, na sobra e no gráfico
-  const fixedTotal = bills.reduce((s, b) => s + b.expected_cents, 0)
+  // contas fixas e variáveis do mês (variável: valor informado, ou o do mês anterior como estimativa); entram no total, na sobra e no gráfico
+  const monthBills = forMonth(month)
+  const fixedTotal = fixedFor(month)
   const grand = view.total + fixedTotal
   const inc = income[month] ?? 0
   const left = inc - grand
   const flex = flexibleCents(view.byCategory)
   const futureTotal = view.future.reduce((s, f) => s + f.cents, 0)
-  const prevGrand = view.prevTotal == null ? null : view.prevTotal + fixedTotal
+  const prevMonthKey = months[months.indexOf(month) + 1]
+  const prevGrand = view.prevTotal == null || !prevMonthKey ? null : view.prevTotal + fixedFor(prevMonthKey)
   const delta = prevGrand ? (grand - prevGrand) / prevGrand : null
   // fatias das roscas: no máximo 5 categorias + "Outras" (cores validadas para fatias vizinhas)
   const catSlices: DonutSlice[] = foldTop(view.byCategory, 5).map((s, i) => ({ key: s.key, label: s.label, cents: s.cents, color: s.folded ? RING_OTHER : RING[i], note: `${s.count}x` }))
@@ -133,7 +130,7 @@ export default function Dashboard() {
   // vencimentos atrasados ou nos próximos 7 dias que ainda não foram marcados como pagos
   const due = attention(
     new Date(),
-    (ym) => buildEvents({ ym, accounts, rows, bills, billColor: FIXED_COLOR, colorOf: (id) => cardStyle(accounts, id).color }),
+    (ym) => buildEvents({ ym, accounts, rows, bills: forMonth(ym), billColor: FIXED_COLOR, colorOf: (id) => cardStyle(accounts, id).color }),
     (e, ym) => !!pay.find(e.kind, e.ref, ym),
   )
   const catTotal = catSlices.reduce((s, x) => s + x.cents, 0)
@@ -148,7 +145,7 @@ export default function Dashboard() {
   ]
   const chartSeries: Series[] = fixedTotal > 0 ? [...view.series, { key: FIXED, name: 'Contas fixas', color: FIXED_COLOR }] : view.series
   const chartData = fixedTotal > 0
-    ? Object.fromEntries(view.monthsAsc.map((m) => [m, { ...(view.evolution[m] ?? {}), [FIXED]: fixedTotal }]))
+    ? Object.fromEntries(view.monthsAsc.map((m) => [m, { ...(view.evolution[m] ?? {}), [FIXED]: fixedFor(m) }]))
     : view.evolution
 
   return (
@@ -270,7 +267,7 @@ export default function Dashboard() {
               </ul>
             </details>
           ))}
-          {bills.length > 0 && (
+          {monthBills.length > 0 && (
             <details className="group rounded-lg border border-zinc-800">
               <summary className="flex cursor-pointer list-none items-center gap-3 p-3">
                 <i className="size-3 shrink-0 rounded-sm" style={{ background: FIXED_COLOR }} aria-hidden />
@@ -282,17 +279,17 @@ export default function Dashboard() {
                   <span className="mt-1 block h-1.5 rounded-full bg-zinc-800">
                     <span className="block h-1.5 rounded-full" style={{ width: `${grand ? Math.max((fixedTotal / grand) * 100, 1) : 0}%`, background: FIXED_COLOR }} />
                   </span>
-                  <span className="mt-1.5 block text-xs text-zinc-500">{grand ? `${((fixedTotal / grand) * 100).toFixed(0)}% do mês · ` : ''}{bills.length} {bills.length === 1 ? 'conta' : 'contas'}</span>
+                  <span className="mt-1.5 block text-xs text-zinc-500">{grand ? `${((fixedTotal / grand) * 100).toFixed(0)}% do mês · ` : ''}{monthBills.length} {monthBills.length === 1 ? 'conta' : 'contas'}{monthBills.some((b) => b.estimated) ? ' · inclui valores estimados' : ''}</span>
                 </span>
               </summary>
               <ul className="divide-y divide-zinc-800 border-t border-zinc-800 text-sm">
-                {[...bills].sort((a, b) => b.expected_cents - a.expected_cents).map((b) => (
+                {[...monthBills].sort((a, b) => b.expected_cents - a.expected_cents).map((b) => (
                   <li key={b.id} className="flex items-start justify-between gap-3 px-3 py-2">
                     <span className="min-w-0">
                       <span className="block truncate">{b.name}</span>
-                      <span className="text-xs text-zinc-500">vence dia {b.due_day}</span>
+                      <span className="text-xs text-zinc-500">vence dia {b.due_day}{b.variable ? (b.estimated ? ' · variável (estimado)' : ' · variável') : ''}</span>
                     </span>
-                    <span className="shrink-0 tabular-nums">{brl(b.expected_cents)}</span>
+                    <span className="shrink-0 tabular-nums">{b.estimated ? '~' : ''}{brl(b.expected_cents)}</span>
                   </li>
                 ))}
               </ul>

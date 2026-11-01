@@ -345,3 +345,37 @@ describe('frase de prazo', () => {
     expect([0, 1, 5, -1, -4].map(dueLabel)).toEqual(['vence hoje', 'vence amanhã', 'vence em 5 dias', 'venceu ontem', 'venceu há 4 dias'])
   })
 })
+
+import { billAmount, billsForMonth, billsTotal } from '../src/lib/bills'
+
+describe('conta variável (luz, água)', () => {
+  const luz = { id: 'l', expected_cents: 66000, variable: true }
+  const aluguel = { id: 'a', expected_cents: 170000, variable: false }
+  const amounts = [{ bill_id: 'l', month: '2026-09-01', amount_cents: 71000 }, { bill_id: 'l', month: '2026-10-01', amount_cents: 58000 }]
+  it('conta fixa sempre tem o valor cadastrado', () => {
+    expect(billAmount(aluguel, '2026-11', amounts)).toEqual({ cents: 170000, estimated: false })
+  })
+  it('usa o valor real do mês quando já foi informado', () => {
+    expect(billAmount(luz, '2026-10', amounts)).toEqual({ cents: 58000, estimated: false })
+  })
+  it('sem o do mês, estima pelo último valor informado antes dele', () => {
+    expect(billAmount(luz, '2026-11', amounts)).toEqual({ cents: 58000, estimated: true })
+    expect(billAmount(luz, '2026-09', amounts)).toEqual({ cents: 71000, estimated: false })
+  })
+  it('sem nenhum valor anterior, usa a estimativa cadastrada', () => {
+    expect(billAmount(luz, '2026-08', amounts)).toEqual({ cents: 66000, estimated: true })
+  })
+  it('totaliza por mês e marca o que ainda é estimado', () => {
+    expect(billsTotal([luz, aluguel], '2026-10', amounts)).toBe(228000)
+    expect(billsTotal([luz, aluguel], '2026-11', amounts)).toBe(228000) // luz estimada pelo último mês (58.000)
+    expect(billsForMonth([luz, aluguel], '2026-11', amounts).map((b) => [b.id, b.estimated])).toEqual([['l', true], ['a', false]])
+  })
+})
+
+import { toInput } from '../src/lib/money'
+
+describe('valor em campo de texto', () => {
+  it('sempre com duas casas e vírgula', () => {
+    expect([71240, 66000, 5, 100].map(toInput)).toEqual(['712,40', '660,00', '0,05', '1,00'])
+  })
+})

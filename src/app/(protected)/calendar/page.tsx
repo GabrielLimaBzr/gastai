@@ -4,14 +4,14 @@ import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccountsFull, useTransactions } from '@/hooks/useData'
 import { usePayments } from '@/hooks/usePayments'
+import { useBills } from '@/hooks/useBills'
 import { DueDayField } from '@/components/DueDayField'
 import { FIXED_COLOR, monthLabel } from '@/components/charts'
 import { cardStyle } from '@/lib/cards'
 import { buildEvents, daysUntil, dueLabel, monthGrid, type DueEvent } from '@/lib/calendar'
 import { addMonths } from '@/lib/ledger'
-import { brl, toCents } from '@/lib/money'
-
-interface Bill { id: string; name: string; expected_cents: number; due_day: number }
+import { brl, toCents, toInput } from '@/lib/money'
+import { useSharedMonth } from '@/contexts/month'
 
 const WEEK = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 
@@ -22,23 +22,24 @@ export default function Calendar() {
   const { rows, loading } = useTransactions()
   const { accounts, setDueDay } = useAccountsFull()
   const pay = usePayments()
-  const [bills, setBills] = useState<Bill[]>([])
-  const [ym, setYm] = useState('')
+  const { forMonth, setAmount, ready: billsReady } = useBills()
   const [today, setToday] = useState<Date | null>(null)
+  const nowYm = today ? `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}` : ''
+  const [ym, setYm] = useSharedMonth([], nowYm)
   const [pick, setPick] = useState<number | null>(null)
   const [msg, setMsg] = useState('')
 
   useEffect(() => {
     const t = new Date()
-    setToday(t); setYm(`${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}`)
-    supabase.from('recurring_bills').select('id,name,expected_cents,due_day').eq('active', true).then(({ data }) => setBills((data as Bill[]) ?? []))
+    setToday(t)
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
+  const monthBills = ym ? forMonth(ym) : []
   const events = useMemo(() => (ym ? buildEvents({
-    ym, accounts, rows, bills, billColor: FIXED_COLOR, colorOf: (id) => cardStyle(accounts, id).color,
-  }) : []), [ym, accounts, rows, bills])
+    ym, accounts, rows, bills: monthBills, billColor: FIXED_COLOR, colorOf: (id) => cardStyle(accounts, id).color,
+  }) : []), [ym, accounts, rows, JSON.stringify(monthBills)]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  if (loading || !ym || !today || !pay.ready) return <p className="text-zinc-500">Carregando…</p>
+  if (loading || !ym || !today || !pay.ready || !billsReady) return <p className="text-zinc-500">Carregando…</p>
 
   const [y, m] = ym.split('-').map(Number)
   const grid = monthGrid(y, m)
@@ -53,6 +54,7 @@ export default function Calendar() {
   const toPay = events.filter((e) => !paymentOf(e)).reduce((s, e) => s + (e.cents ?? 0), 0)
   const paidCount = events.filter((e) => paymentOf(e)).length
   const unknown = events.filter((e) => e.cents == null && !paymentOf(e)).length
+  const estimatedN = events.filter((e) => e.estimated && !paymentOf(e)).length
   const pending = events.filter((e) => !paymentOf(e))
   const overdue = isThisMonth ? pending.filter((e) => daysUntil(today, y, m, e.day) < 0) : []
   const next = isThisMonth ? pending.find((e) => daysUntil(today, y, m, e.day) >= 0) : undefined
@@ -63,6 +65,13 @@ export default function Calendar() {
     try {
       if (p) return await pay.unmark(p.id)
       let cents = e.cents
+      if (e.kind === 'bill' && e.variable && e.estimated) { // conta variável: confirma o valor real da conta antes de dar baixa
+        const v = prompt(`Valor da conta «${e.label}» em ${monthLabel(ym)} (R$):`, e.cents != null ? toInput(e.cents) : '')
+        if (v == null) return
+        cents = toCents(v)
+        if (!(cents > 0)) return setMsg('Informe um valor maior que zero.')
+        await setAmount(e.ref, ym, cents)
+      }
       if (cents == null) { // valor ainda desconhecido: pergunta quanto foi
         const v = prompt(`Quanto você pagou em «${e.label}»? (R$)`)
         if (v == null) return
@@ -73,6 +82,15 @@ export default function Calendar() {
     } catch (err) {
       setMsg(`Não salvou: ${(err as Error).message}`)
     }
+  }
+
+  async function informAmount(e: DueEvent) {
+    setMsg('')
+    const v = prompt(`Valor da conta «${e.label}» em ${monthLabel(ym)} (R$):`, e.cents != null ? toInput(e.cents) : '')
+    if (v == null) return
+    const cents = toCents(v)
+    if (!(cents > 0)) return setMsg('Informe um valor maior que zero.')
+    try { await setAmount(e.ref, ym, cents) } catch (err) { setMsg(`Não salvou: ${(err as Error).message}`) }
   }
 
   return (
@@ -114,7 +132,7 @@ export default function Calendar() {
             aria-valuenow={total ? Math.min(Math.round((paidCents / total) * 100), 100) : 0} aria-label="Quanto do mês já foi pago">
             <div className="h-2 rounded-full bg-emerald-500" style={{ width: `${total ? Math.min((paidCents / total) * 100, 100) : 0}%` }} />
           </div>
-          <p className="text-xs text-zinc-500">{paidCount} de {events.length} vencimentos pagos</p>
+          <p className="text-xs text-zinc-500">{paidCount} de {events.length} vencimentos pagos{estimatedN > 0 && ` · inclui ${estimatedN} ${estimatedN === 1 ? 'valor estimado' : 'valores estimados'}`}</p>
           {isThisMonth && overdue.length > 0 && (
             <p className="rounded-lg border border-red-500/40 bg-red-500/10 px-3 py-2 text-sm text-red-300" role="alert">
               <b>{overdue.length} {overdue.length === 1 ? 'vencimento atrasado' : 'vencimentos atrasados'}:</b> {overdue.map((e) => `${e.label}${e.cents != null ? ` (${brl(e.cents)})` : ''}`).join(', ')}
@@ -184,7 +202,12 @@ export default function Calendar() {
                     </span>
                   </span>
                   <span className="shrink-0 text-right tabular-nums">
-                    {e.cents == null && !p ? '—' : brl(p?.amount_cents ?? e.cents ?? 0)}
+                    {e.cents == null && !p ? '—' : `${e.estimated && !p ? '~' : ''}${brl(p?.amount_cents ?? e.cents ?? 0)}`}
+                    {e.variable && (
+                      <button type="button" className="mt-0.5 block w-full text-right text-xs text-emerald-400" onClick={() => informAmount(e)}>
+                        {e.estimated ? 'Informar valor' : 'Corrigir valor'}
+                      </button>
+                    )}
                   </span>
                 </li>
               )
