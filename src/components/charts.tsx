@@ -40,6 +40,8 @@ export function StackedColumns({ months, series, data, marker, markerLabel, heig
 }) {
   const box = useRef<HTMLDivElement>(null)
   const [tip, setTip] = useState<{ x: number; y: number; month: string } | null>(null)
+  // toque: o dedo cobre a coluna e o "sair" dispara ao levantar, então o toque fixa o mês e o detalhe aparece embaixo
+  const [sel, setSel] = useState<string | null>(null)
 
   // mede a largura real: o SVG não encolhe e o texto continua com tamanho legível no celular
   const [width, setWidth] = useState(640)
@@ -60,9 +62,23 @@ export function StackedColumns({ months, series, data, marker, markerLabel, heig
   const ticks = [0, top / 2, top]
 
   function show(e: React.PointerEvent, month: string) {
+    if (e.pointerType !== 'mouse') return
     const r = box.current!.getBoundingClientRect()
     setTip({ x: Math.min(e.clientX - r.left, r.width - 170), y: Math.max(e.clientY - r.top - 8, 0), month })
   }
+
+  const detail = (month: string) => (
+    <>
+      <p className="mb-1 font-medium text-zinc-100">{monthLabel(month)}</p>
+      {series.map((s) => (data[month]?.[s.key] ?? 0) !== 0 && (
+        <p key={s.key} className="flex justify-between gap-2 text-zinc-300">
+          <span className="flex items-center gap-1.5 truncate"><i className="inline-block size-2 shrink-0 rounded-sm" style={{ background: s.color }} />{s.name}</span>
+          <span>{brl(data[month][s.key])}</span>
+        </p>
+      ))}
+      {marker?.[month] ? <p className="mt-1 flex justify-between border-t border-zinc-800 pt-1 text-zinc-300"><span>{markerLabel}</span><span>{brl(marker[month])}</span></p> : null}
+    </>
+  )
 
   return (
     <div>
@@ -86,7 +102,8 @@ export function StackedColumns({ months, series, data, marker, markerLabel, heig
             const cx = ml + band * i + band / 2
             let cum = 0
             return (
-              <g key={m} onPointerEnter={(e) => show(e, m)} onPointerMove={(e) => show(e, m)} onPointerLeave={() => setTip(null)}>
+              <g key={m} onPointerEnter={(e) => show(e, m)} onPointerMove={(e) => show(e, m)} onPointerLeave={(e) => { if (e.pointerType === 'mouse') setTip(null) }}
+                 onClick={() => setSel((c) => (c === m ? null : m))} className="cursor-pointer" opacity={sel && sel !== m ? 0.45 : 1}>
                 <rect x={cx - band / 2} y={mt} width={band} height={H - mt - mb} fill="transparent" />
                 {series.map((s) => {
                   const v = Math.max(0, data[m]?.[s.key] ?? 0)
@@ -109,17 +126,15 @@ export function StackedColumns({ months, series, data, marker, markerLabel, heig
         </svg>
         {tip && (
           <div className="pointer-events-none absolute z-10 w-40 rounded-lg border border-zinc-700 bg-zinc-900 p-2 text-xs shadow-lg" style={{ left: tip.x, top: tip.y, transform: 'translateY(-100%)' }}>
-            <p className="mb-1 font-medium text-zinc-100">{monthLabel(tip.month)}</p>
-            {series.map((s) => (data[tip.month]?.[s.key] ?? 0) !== 0 && (
-              <p key={s.key} className="flex justify-between gap-2 text-zinc-300">
-                <span className="flex items-center gap-1.5 truncate"><i className="inline-block size-2 shrink-0 rounded-sm" style={{ background: s.color }} />{s.name}</span>
-                <span>{brl(data[tip.month][s.key])}</span>
-              </p>
-            ))}
-            {marker?.[tip.month] ? <p className="mt-1 flex justify-between border-t border-zinc-800 pt-1 text-zinc-300"><span>{markerLabel}</span><span>{brl(marker[tip.month])}</span></p> : null}
+            {detail(tip.month)}
           </div>
         )}
       </div>
+      {sel ? (
+        <div className="mt-2 rounded-xl border border-zinc-800 bg-zinc-900 p-3 text-sm" aria-live="polite">{detail(sel)}</div>
+      ) : (
+        <p className="mt-2 text-xs text-zinc-500">Toque numa coluna para ver o detalhe do mês.</p>
+      )}
     </div>
   )
 }
