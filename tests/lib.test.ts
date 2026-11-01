@@ -310,11 +310,38 @@ describe('calendário de vencimentos', () => {
     const r = (id: string, acc: string, c: number, n: number | null, tot: number | null) => ({ id, occurred_on: '2026-08-03', billed_month: '2026-10-01', description: id, amount_cents: c, installment_no: n, installment_total: tot, category_id: null, account_id: acc })
     const rows = [r('a', 'c1', 5000, null, null), r('b', 'c1', 2000, 1, 3), r('c', 'c2', 1000, 2, 2)]
     const input = { accounts: [{ id: 'c1', name: 'Cresol', due_day: 7 }, { id: 'c2', name: 'Nubank', due_day: 10 }, { id: 'c3', name: 'Sem dia', due_day: null }], rows,
-      bills: [{ name: 'Aluguel', expected_cents: 170000, due_day: 28 }], colorOf: () => '#fff', billColor: '#aaa' }
+      bills: [{ id: 'b1', name: 'Aluguel', expected_cents: 170000, due_day: 28 }], colorOf: () => '#fff', billColor: '#aaa' }
     const out = buildEvents({ ...input, ym: '2026-10' })
     expect(out.map((e) => [e.day, e.label, e.cents])).toEqual([[7, 'Cresol', 7000], [10, 'Nubank', 1000], [28, 'Aluguel', 170000]])
+    expect(out.map((e) => [e.kind, e.ref])).toEqual([['card', 'c1'], ['card', 'c2'], ['bill', 'b1']])
     const nov = buildEvents({ ...input, ym: '2026-11' }) // mês futuro: só as parcelas já contratadas
     expect(nov.find((e) => e.label === 'Cresol')).toMatchObject({ cents: 2000, note: 'só as parcelas já contratadas' })
     expect(nov.find((e) => e.label === 'Nubank')).toMatchObject({ cents: null, note: 'ainda sem fatura' })
+  })
+})
+
+import { attention, type DueEvent } from '../src/lib/calendar'
+
+describe('vencimentos que pedem atenção', () => {
+  const ev = (day: number, label: string, ref: string): DueEvent => ({ day, kind: 'card', ref, label, cents: 1000, color: '#fff', note: 'fatura' })
+  const eventsOf = (ym: string) => (ym === '2026-11' ? [ev(2, 'Atrasada', 'a'), ev(3, 'Paga', 'b'), ev(7, 'Em breve', 'c'), ev(20, 'Longe', 'd')] : [ev(1, 'Mês seguinte', 'e')])
+  const paid = (e: DueEvent) => e.ref === 'b'
+  it('separa atrasados (não pagos) dos que vencem na janela, ignorando os pagos e os distantes', () => {
+    const r = attention(new Date(2026, 10, 4), eventsOf, paid) // 04/11/2026
+    expect(r.overdue.map((e) => [e.label, e.inDays])).toEqual([['Atrasada', -2]])
+    expect(r.soon.map((e) => [e.label, e.inDays])).toEqual([['Em breve', 3]])
+  })
+  it('a janela atravessa a virada do mês', () => {
+    const r = attention(new Date(2026, 10, 28), eventsOf, paid) // 28/11 → 01/12 está a 3 dias
+    expect(r.soon.map((e) => e.label)).toEqual(['Mês seguinte'])
+    expect(r.overdue.map((e) => e.label)).toEqual(['Atrasada', 'Em breve', 'Longe']) // em 28/11 tudo que não está pago e é de nov já passou
+  })
+})
+
+import { dueLabel } from '../src/lib/calendar'
+
+describe('frase de prazo', () => {
+  it('descreve quanto falta (ou quanto passou)', () => {
+    expect([0, 1, 5, -1, -4].map(dueLabel)).toEqual(['vence hoje', 'vence amanhã', 'vence em 5 dias', 'venceu ontem', 'venceu há 4 dias'])
   })
 })

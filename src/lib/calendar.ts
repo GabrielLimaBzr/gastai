@@ -21,6 +21,7 @@ export function daysUntil(today: Date, y: number, m: number, day: number): numbe
 export interface DueEvent {
   day: number
   kind: 'card' | 'bill'
+  ref: string // id do cartão ou da conta fixa: é com ele que o pagamento é marcado
   label: string
   cents: number | null // null = valor ainda desconhecido
   color: string
@@ -31,7 +32,7 @@ export interface CalendarInput {
   ym: string // mês exibido (AAAA-MM)
   accounts: { id: string; name: string; due_day: number | null }[]
   rows: LedgerRow[]
-  bills: { name: string; expected_cents: number; due_day: number }[]
+  bills: { id: string; name: string; expected_cents: number; due_day: number }[]
   colorOf: (accountId: string) => string
   billColor: string
 }
@@ -57,8 +58,40 @@ export function buildEvents({ ym, accounts, rows, bills, colorOf, billColor }: C
       const proj = futureDetail(rows, latest, 12)[k - 1]?.items.filter((i) => i.row.account_id === a.id).reduce((s, i) => s + i.cents, 0) ?? 0
       if (proj > 0) { cents = proj; note = 'só as parcelas já contratadas' } else note = 'ainda sem fatura'
     }
-    events.push({ day: clampDay(a.due_day, y, m), kind: 'card', label: a.name, cents, color: colorOf(a.id), note })
+    events.push({ day: clampDay(a.due_day, y, m), kind: 'card', ref: a.id, label: a.name, cents, color: colorOf(a.id), note })
   }
-  for (const b of bills) events.push({ day: clampDay(b.due_day, y, m), kind: 'bill', label: b.name, cents: b.expected_cents, color: billColor, note: 'conta fixa' })
+  for (const b of bills) events.push({ day: clampDay(b.due_day, y, m), kind: 'bill', ref: b.id, label: b.name, cents: b.expected_cents, color: billColor, note: 'conta fixa' })
   return events.sort((a, b) => a.day - b.day || a.label.localeCompare(b.label))
+}
+
+export interface Pending extends DueEvent { ym: string; inDays: number }
+
+/**
+ * O que pede atenção hoje: vencimentos NÃO pagos do mês corrente que já passaram (atrasados) e os que vencem
+ * nos próximos `windowDays` dias (pode virar o mês). Só olha o mês corrente para trás: faturas de meses
+ * antigos nunca marcadas como pagas não devem aparecer como atrasadas.
+ */
+export function attention(today: Date, eventsOf: (ym: string) => DueEvent[], isPaid: (e: DueEvent, ym: string) => boolean, windowDays = 7): { overdue: Pending[]; soon: Pending[] } {
+  const ymOf = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}`
+  const cur = ymOf(today)
+  const next = ymOf(new Date(today.getFullYear(), today.getMonth() + 1, 1))
+  const out: Pending[] = []
+  for (const ym of [cur, next]) {
+    const [y, m] = ym.split('-').map(Number)
+    for (const e of eventsOf(ym)) {
+      if (isPaid(e, ym)) continue
+      const inDays = daysUntil(today, y, m, e.day)
+      if ((ym === cur && inDays < 0) || (inDays >= 0 && inDays <= windowDays)) out.push({ ...e, ym, inDays })
+    }
+  }
+  out.sort((a, b) => a.inDays - b.inDays || a.label.localeCompare(b.label))
+  return { overdue: out.filter((e) => e.inDays < 0), soon: out.filter((e) => e.inDays >= 0) }
+}
+
+/** Frase de prazo: "vence amanhã", "venceu há 3 dias"… (d = dias até o vencimento). */
+export function dueLabel(d: number): string {
+  if (d === 0) return 'vence hoje'
+  if (d === 1) return 'vence amanhã'
+  if (d > 1) return `vence em ${d} dias`
+  return d === -1 ? 'venceu ontem' : `venceu há ${-d} dias`
 }

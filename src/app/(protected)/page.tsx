@@ -4,6 +4,8 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccounts, useTransactions, type TxRow } from '@/hooks/useData'
 import { useCategories } from '@/hooks/useCategories'
+import { usePayments } from '@/hooks/usePayments'
+import { attention, buildEvents, dueLabel } from '@/lib/calendar'
 import { Donut, FIXED_COLOR, HBars, StackedColumns, monthLabel, type DonutSlice, type Series } from '@/components/charts'
 import { RING, RING_OTHER, SERIES } from '@/lib/palette'
 import { categorize, flexibleCents, foldTop, futureInstallments, groupSum, merchantKey, monthsDesc, sumCents } from '@/lib/ledger'
@@ -40,6 +42,7 @@ export default function Dashboard() {
   const { rows, loading } = useTransactions()
   const accounts = useAccounts()
   const { cats, ready } = useCategories()
+  const pay = usePayments()
   const [income, setIncome] = useState<Record<string, number>>({})
   const [month, setMonth] = useState('')
   const [bills, setBills] = useState<Bill[]>([])
@@ -108,7 +111,7 @@ export default function Dashboard() {
     setIncome((p) => ({ ...p, [month]: cents }))
   }
 
-  if (loading || !ready) return <p className="text-zinc-500">Carregando…</p>
+  if (loading || !ready || !pay.ready) return <p className="text-zinc-500">Carregando…</p>
   if (!months.length) return <p className="text-zinc-400">Nenhum dado ainda. Comece em <b>Importar</b>.</p>
 
   // contas fixas valem todo mês (o valor esperado de hoje); entram no total, na sobra e no gráfico
@@ -127,6 +130,12 @@ export default function Dashboard() {
     const goal = cats.find((c) => c.name === s.key)?.goal_cents
     return goal && s.cents > goal ? [{ name: s.key, over: s.cents - goal }] : []
   })
+  // vencimentos atrasados ou nos próximos 7 dias que ainda não foram marcados como pagos
+  const due = attention(
+    new Date(),
+    (ym) => buildEvents({ ym, accounts, rows, bills, billColor: FIXED_COLOR, colorOf: (id) => cardStyle(accounts, id).color }),
+    (e, ym) => !!pay.find(e.kind, e.ref, ym),
+  )
   const catTotal = catSlices.reduce((s, x) => s + x.cents, 0)
   const cardSlices: DonutSlice[] = [
     ...view.cards.map((c) => ({ key: c.key, label: c.name, cents: c.total, color: c.color })),
@@ -166,8 +175,22 @@ export default function Dashboard() {
       {view.pending.length > 0 && (
         <Link href={`/transactions?filtro=sem-categoria&mes=${month}`}
           className="flex items-center justify-between gap-3 rounded-xl border border-amber-500/40 bg-amber-500/10 px-4 py-3 text-sm">
-          <span><b>{view.pending.length} compras sem categoria</b> ({brl(sumCents(view.pending))}) — categorize para a análise ficar correta</span>
+          <span><b>{view.pending.length} {view.pending.length === 1 ? 'compra sem categoria' : 'compras sem categoria'}</b> ({brl(sumCents(view.pending))}) — categorize para a análise ficar correta</span>
           <span className="shrink-0 text-amber-300">Categorizar →</span>
+        </Link>
+      )}
+
+      {(due.overdue.length > 0 || due.soon.length > 0) && (
+        <Link href="/calendar" className={`flex items-center justify-between gap-3 rounded-xl border px-4 py-3 text-sm ${due.overdue.length ? 'border-red-500/40 bg-red-500/10' : 'border-sky-500/30 bg-sky-500/10'}`}>
+          <span className="min-w-0">
+            {due.overdue.length > 0 && (
+              <span className="block"><b>{due.overdue.length === 1 ? '1 vencimento atrasado' : `${due.overdue.length} vencimentos atrasados`}:</b> {due.overdue.slice(0, 3).map((e) => `${e.label} (${dueLabel(e.inDays)})`).join(', ')}</span>
+            )}
+            {due.soon.length > 0 && (
+              <span className="block"><b>Vence em breve:</b> {due.soon.slice(0, 3).map((e) => `${e.label} (${dueLabel(e.inDays).replace('vence ', '')}${e.cents != null ? `, ${brl(e.cents)}` : ''})`).join(', ')}</span>
+            )}
+          </span>
+          <span className="shrink-0 text-zinc-300">Calendário →</span>
         </Link>
       )}
 
