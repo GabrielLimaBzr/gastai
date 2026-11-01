@@ -11,10 +11,11 @@ import { sha256Hex } from '@/lib/pdfInvoice'
 import { brl } from '@/lib/money'
 import { useCategories } from '@/hooks/useCategories'
 import { Dropzone } from '@/components/Dropzone'
+import { CardColors } from '@/components/CardColors'
 import { ImportedStatements } from '@/components/ImportedStatements'
 import type { Tx } from '@/lib/types'
 
-interface Account { id: string; name: string }
+interface Account { id: string; name: string; color: string | null }
 type Preview = {
   txs: Tx[]; source: 'pdf' | 'notion'; fileHash?: string
   bank?: string; billedMonth?: string; declaredTotal?: number | null
@@ -36,7 +37,7 @@ export default function Import() {
   const [reloadKey, setReloadKey] = useState(0)
 
   async function loadAccounts(): Promise<Account[]> {
-    const { data } = await supabase.from('accounts').select('id,name').order('created_at')
+    const { data } = await supabase.from('accounts').select('id,name,color').order('created_at')
     const list = (data as Account[]) ?? []
     setAccounts(list)
     return list
@@ -178,7 +179,9 @@ export default function Import() {
 
       <div className="card space-y-2">
         <h2 className="font-medium">Cartões</h2>
-        <p className="text-xs text-zinc-500">{accounts.length ? accounts.map((a) => a.name).join(' · ') : 'Nenhum cartão ainda — ele é criado sozinho na primeira importação.'}</p>
+        {accounts.length
+          ? <CardColors accounts={accounts} onChanged={() => loadAccounts()} />
+          : <p className="text-xs text-zinc-500">Nenhum cartão ainda — ele é criado sozinho na primeira importação.</p>}
         <div className="flex flex-wrap gap-2">
           <input className="input min-w-0 flex-1" placeholder="Novo cartão" value={newAccount} onChange={(e) => setNewAccount(e.target.value)} />
           <button className="btn" onClick={addAccount}>Criar</button>

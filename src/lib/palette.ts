@@ -13,3 +13,15 @@ export const BANK_COLOR = { nubank: '#a05ae0', cresol: '#d57c11', santander: '#c
 
 /** Cartões de outros bancos: tons que não se parecem com os três acima (sem amarelo/laranja/vermelho/violeta). */
 export const FALLBACK = ['#3987e5', '#199e70', '#d55181', '#008300']
+
+/** Fatias da rosca de categorias, nesta ordem: todas as vizinhas (inclusive a que fecha o anel) passam no validador. */
+export const RING = ['#3987e5', '#199e70', '#c98500', '#d55181', '#008300']
+export const RING_OTHER = '#71717a'
+
+/** Opções do seletor de cor do cartão: todas com contraste ≥ 3:1 no fundo escuro. */
+export const PRESET_COLORS: { hex: string; name: string }[] = [
+  { hex: '#a05ae0', name: 'Roxo' }, { hex: '#d57c11', name: 'Laranja' }, { hex: '#c90c27', name: 'Vermelho' },
+  { hex: '#3987e5', name: 'Azul' }, { hex: '#199e70', name: 'Verde-água' }, { hex: '#d55181', name: 'Rosa' },
+  { hex: '#c98500', name: 'Amarelo' }, { hex: '#008300', name: 'Verde' }, { hex: '#9085e9', name: 'Violeta' },
+  { hex: '#a1a1aa', name: 'Cinza' },
+]

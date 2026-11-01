@@ -35,14 +35,14 @@ export function useTransactions() {
   return { rows, setRows, loading, reload }
 }
 
-export interface Account { id: string; name: string; created_at: string }
+export interface Account { id: string; name: string; created_at: string; color: string | null }
 
 /** Cartões do usuário, na ordem de criação (a cor de cada cartão nos gráficos segue essa ordem). */
 export function useAccounts() {
   const supabase = createClient()
   const [accounts, setAccounts] = useState<Account[]>([])
   useEffect(() => {
-    supabase.from('accounts').select('id,name,created_at').order('created_at').then(({ data }) => setAccounts((data as Account[]) ?? []))
+    supabase.from('accounts').select('id,name,created_at,color').order('created_at').then(({ data }) => setAccounts((data as Account[]) ?? []))
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
   return accounts
 }

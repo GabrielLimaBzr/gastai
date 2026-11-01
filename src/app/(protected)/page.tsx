@@ -4,8 +4,9 @@ import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccounts, useTransactions, type TxRow } from '@/hooks/useData'
 import { useCategories } from '@/hooks/useCategories'
-import { FIXED_COLOR, HBars, SERIES, StackedColumns, monthLabel, type Series } from '@/components/charts'
-import { categorize, flexibleCents, futureInstallments, groupSum, merchantKey, monthsDesc, sumCents } from '@/lib/ledger'
+import { Donut, FIXED_COLOR, HBars, StackedColumns, monthLabel, type DonutSlice, type Series } from '@/components/charts'
+import { RING, RING_OTHER, SERIES } from '@/lib/palette'
+import { categorize, flexibleCents, foldTop, futureInstallments, groupSum, merchantKey, monthsDesc, sumCents } from '@/lib/ledger'
 import { cardStyle } from '@/lib/cards'
 import { brl, monthKey, txMonth } from '@/lib/money'
 
@@ -42,6 +43,11 @@ export default function Dashboard() {
   const [income, setIncome] = useState<Record<string, number>>({})
   const [month, setMonth] = useState('')
   const [bills, setBills] = useState<Bill[]>([])
+  const [catView, setCatView] = useState<'donut' | 'bars'>('donut')
+
+  // preferência de visualização: só conveniência do aparelho, por isso localStorage com try/catch
+  useEffect(() => { try { const v = localStorage.getItem('gastai:catview'); if (v === 'bars' || v === 'donut') setCatView(v) } catch { /* sem storage */ } }, [])
+  function pickCatView(v: 'donut' | 'bars') { setCatView(v); try { localStorage.setItem('gastai:catview', v) } catch { /* sem storage */ } }
 
   useEffect(() => {
     supabase.from('recurring_bills').select('id,name,expected_cents,due_day').eq('active', true).order('due_day')
@@ -114,6 +120,18 @@ export default function Dashboard() {
   const futureTotal = view.future.reduce((s, f) => s + f.cents, 0)
   const prevGrand = view.prevTotal == null ? null : view.prevTotal + fixedTotal
   const delta = prevGrand ? (grand - prevGrand) / prevGrand : null
+  // fatias das roscas: no máximo 5 categorias + "Outras" (cores validadas para fatias vizinhas)
+  const catSlices: DonutSlice[] = foldTop(view.byCategory, 5).map((s, i) => ({ key: s.key, label: s.label, cents: s.cents, color: s.folded ? RING_OTHER : RING[i], note: `${s.count}x` }))
+  const catTotal = catSlices.reduce((s, x) => s + x.cents, 0)
+  const cardSlices: DonutSlice[] = [
+    ...view.cards.map((c) => ({ key: c.key, label: c.name, cents: c.total, color: c.color })),
+    ...(fixedTotal > 0 ? [{ key: FIXED, label: 'Contas fixas', cents: fixedTotal, color: FIXED_COLOR }] : []),
+  ]
+  const incomeSlices: DonutSlice[] = [
+    { key: 'cards', label: 'Cartões', cents: view.total, color: RING[0] },
+    ...(fixedTotal > 0 ? [{ key: 'fixed', label: 'Contas fixas', cents: fixedTotal, color: FIXED_COLOR }] : []),
+    ...(left > 0 ? [{ key: 'left', label: 'Sobra', cents: left, color: RING[1] }] : []),
+  ]
   const chartSeries: Series[] = fixedTotal > 0 ? [...view.series, { key: FIXED, name: 'Contas fixas', color: FIXED_COLOR }] : view.series
   const chartData = fixedTotal > 0
     ? Object.fromEntries(view.monthsAsc.map((m) => [m, { ...(view.evolution[m] ?? {}), [FIXED]: fixedTotal }]))
@@ -148,6 +166,12 @@ export default function Dashboard() {
         </Link>
       )}
 
+      {inc > 0 && (
+        <Section title="Como a renda é usada" hint={`Renda de ${monthLabel(month)}: ${brl(inc)}${left < 0 ? ' — os gastos passaram da renda.' : '.'}`}>
+          <Donut slices={incomeSlices} centerLabel={left >= 0 ? 'Sobra' : 'Estouro'} centerValue={brl(Math.abs(left))} centerTone={left < 0 ? 'bad' : undefined} />
+        </Section>
+      )}
+
       <Section title="Gasto por mês" hint={fixedTotal > 0
           ? 'Cada coluna soma as faturas dos cartões e as contas fixas; a linha branca é a renda.'
           : 'Cada coluna é a soma das faturas do mês; a linha branca é a renda. Cadastre suas contas fixas para elas entrarem aqui.'}>
@@ -156,7 +180,15 @@ export default function Dashboard() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Section title="Por categoria" hint="Compras no cartão, em reais e % do total no cartão.">
-          <HBars items={view.byCategory.slice(0, 10).map((s) => ({ key: s.key, label: s.key, cents: s.cents, count: s.count }))} />
+          <div className="mb-3 inline-flex rounded-lg border border-zinc-700 p-0.5 text-sm" role="group" aria-label="Tipo de gráfico">
+            {([['donut', 'Rosca'], ['bars', 'Barras']] as const).map(([id, label]) => (
+              <button key={id} type="button" aria-pressed={catView === id} onClick={() => pickCatView(id)}
+                className={`rounded-md px-3 py-1 ${catView === id ? 'bg-zinc-800 text-white' : 'text-zinc-400'}`}>{label}</button>
+            ))}
+          </div>
+          {catView === 'donut'
+            ? <Donut stacked slices={catSlices} centerLabel="No cartão" centerValue={brl(catTotal)} />
+            : <HBars items={view.byCategory.slice(0, 10).map((s) => ({ key: s.key, label: s.key, cents: s.cents, count: s.count }))} />}
         </Section>
         <Section title="Onde mais gasto" hint="Maiores estabelecimentos do mês.">
           <HBars items={view.byMerchant.slice(0, 10).map((s) => ({ key: s.key, label: view.nameOfMerchant.get(s.key) ?? s.key, cents: s.cents, count: s.count }))} />
@@ -164,6 +196,7 @@ export default function Dashboard() {
       </div>
 
       <Section title="Gastos em cada cartão" hint="Toque em um cartão para ver todas as compras da fatura; as contas fixas aparecem no fim.">
+        <div className="mb-5"><Donut slices={cardSlices} centerLabel="Gasto no mês" centerValue={brl(grand)} /></div>
         <div className="space-y-3">
           {view.cards.map((c) => (
             <details key={c.key} className="group rounded-lg border border-zinc-800">

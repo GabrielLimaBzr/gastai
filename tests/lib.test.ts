@@ -215,3 +215,48 @@ describe('cor dos cartões', () => {
     expect(cardStyle(accs, null)).toEqual({ name: 'Sem cartão', color: '#71717a' })
   })
 })
+
+import { foldTop } from '../src/lib/ledger'
+
+describe('foldTop (fatias da rosca)', () => {
+  const s = (key: string, cents: number) => ({ key, cents, count: 1 })
+  it('junta o excedente em "Demais" e ignora valores negativos', () => {
+    const r = foldTop([s('a', 50), s('b', 40), s('c', 30), s('d', 20), s('e', 10), s('f', 5), s('g', 3), s('x', -9)], 5)
+    expect(r.map((x) => x.key)).toEqual(['a', 'b', 'c', 'd', 'e', '__other__'])
+    expect(r[5]).toMatchObject({ label: 'Demais', cents: 8, count: 2, folded: true })
+  })
+  it('sem excedente não cria "Demais"', () => {
+    expect(foldTop([s('a', 2), s('b', 1)], 5).map((x) => x.key)).toEqual(['a', 'b'])
+  })
+})
+
+import { colorWarnings, contrast, deltaE, SURFACE } from '../src/lib/color'
+import { PRESET_COLORS } from '../src/lib/palette'
+
+describe('cor escolhida pelo usuário', () => {
+  it('a cor escolhida vence a da marca', () => {
+    const accs = [{ id: 'n', name: 'Nubank', color: '#3987e5' }, { id: 'c', name: 'Cresol', color: null }]
+    expect(cardStyle(accs, 'n').color).toBe('#3987e5')
+    expect(cardStyle(accs, 'c').color).toBe(BANK_COLOR.cresol)
+  })
+  it('ignora cor inválida', () => {
+    expect(cardStyle([{ id: 'n', name: 'Nubank', color: 'roxo' }], 'n').color).toBe(BANK_COLOR.nubank)
+  })
+  it('cartão com cor própria não consome cor de reserva', () => {
+    const accs = [{ id: 'a', name: 'Inter', color: '#d55181' }, { id: 'b', name: 'C6', color: null }]
+    expect(cardStyle(accs, 'b').color).toBe(FALLBACK[0])
+  })
+  it('mede contraste e diferença entre cores', () => {
+    expect(contrast('#ffffff', '#000000')).toBeCloseTo(21, 0)
+    expect(deltaE(BANK_COLOR.cresol, BANK_COLOR.santander)).toBeGreaterThan(15) // as cores de marca escolhidas se distinguem
+    expect(deltaE('#d95926', '#e66767')).toBeLessThan(15) // laranja/vermelho "puros" se confundiam
+  })
+  it('todas as opções do seletor têm contraste suficiente no fundo', () => {
+    for (const p of PRESET_COLORS) expect(contrast(p.hex, SURFACE)).toBeGreaterThanOrEqual(3)
+  })
+  it('avisa cor escura demais e cor parecida com outro cartão', () => {
+    expect(colorWarnings('#222222', [])).toHaveLength(1)
+    expect(colorWarnings('#c90c27', [{ name: 'Santander', color: '#c70d28' }])[0]).toMatch(/Santander/)
+    expect(colorWarnings('#3987e5', [{ name: 'Nubank', color: '#a05ae0' }])).toEqual([])
+  })
+})

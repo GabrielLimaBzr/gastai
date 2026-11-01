@@ -103,3 +103,14 @@ export function bucketBy<T>(rows: T[], key: (r: T) => string): Map<string, T[]> 
   }
   return m
 }
+
+export interface Folded { key: string; label: string; cents: number; count: number; folded?: boolean }
+
+/** Mantém as `max` maiores e soma o resto em "Demais" (rosca legível: no máximo 6 fatias). */
+export function foldTop(slices: Slice[], max = 5, otherLabel = 'Demais'): Folded[] {
+  const pos = slices.filter((s) => s.cents > 0).sort((a, b) => b.cents - a.cents)
+  const head = pos.slice(0, max).map((s) => ({ key: s.key, label: s.key, cents: s.cents, count: s.count }))
+  const tail = pos.slice(max)
+  if (!tail.length) return head
+  return [...head, { key: '__other__', label: otherLabel, cents: tail.reduce((a, s) => a + s.cents, 0), count: tail.reduce((a, s) => a + s.count, 0), folded: true }]
+}

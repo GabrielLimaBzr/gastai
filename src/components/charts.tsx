@@ -150,3 +150,80 @@ export function HBars({ items, color = RANK_BAR, empty = 'Sem dados.' }: { items
     </ul>
   )
 }
+
+export interface DonutSlice { key: string; label: string; cents: number; color: string; note?: string }
+
+/**
+ * Rosca: anel fino com 3px de respiro entre as fatias; o centro mostra o total e, ao tocar/passar numa fatia
+ * (ou na linha da legenda), o nome, o valor e a %. A legenda sempre lista nome, valor e % de cada fatia.
+ */
+export function Donut({ slices, centerLabel, centerValue, centerTone, stacked }: {
+  slices: DonutSlice[]
+  centerLabel: string
+  centerValue: string
+  centerTone?: 'bad'
+  /** Legenda sempre embaixo (colunas estreitas); por padrão fica ao lado em telas largas. */
+  stacked?: boolean
+}) {
+  const [active, setActive] = useState<string | null>(null)
+  const ptype = useRef('mouse')
+  const items = slices.filter((s) => s.cents > 0)
+  const total = items.reduce((a, s) => a + s.cents, 0)
+  if (!total) return <p className="text-sm text-zinc-500">Sem dados.</p>
+
+  const R = 70, W = 24, C = 2 * Math.PI * R, GAP = items.length > 1 ? 3 : 0
+  let start = 0
+  const arcs = items.map((s) => {
+    const len = (s.cents / total) * C
+    const arc = { s, dash: Math.max(len - GAP, 1), offset: -start }
+    start += len
+    return arc
+  })
+  const cur = items.find((s) => s.key === active)
+
+  // mouse: destaca ao passar por cima. Toque: destaca ao tocar e continua até tocar de novo
+  // (no toque o "sair" dispara ao levantar o dedo, então só o mouse usa enter/leave).
+  const pointer = (key: string) => ({
+    onPointerDown: (e: React.PointerEvent) => { ptype.current = e.pointerType },
+    onPointerEnter: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') setActive(key) },
+    onPointerLeave: (e: React.PointerEvent) => { if (e.pointerType === 'mouse') setActive(null) },
+    onClick: () => setActive((a) => (a === key && ptype.current !== 'mouse' ? null : key)),
+  })
+
+  return (
+    <div className={`flex flex-col items-center gap-4 ${stacked ? '' : 'sm:flex-row sm:gap-6'}`}>
+      <div className="relative size-44 shrink-0">
+        <svg viewBox="0 0 176 176" className="size-full -rotate-90" role="img" aria-label={`${centerLabel}: ${centerValue}`}>
+          <circle cx={88} cy={88} r={R} fill="none" stroke={GRID} strokeWidth={W} />
+          {arcs.map(({ s, dash, offset }) => (
+            <circle key={s.key} cx={88} cy={88} r={R} fill="none" stroke={s.color}
+              strokeWidth={active === s.key ? W + 6 : W} strokeDasharray={`${dash} ${C - dash}`} strokeDashoffset={offset}
+              opacity={active && active !== s.key ? 0.4 : 1} className="cursor-pointer transition-[stroke-width,opacity]"
+              {...pointer(s.key)} />
+          ))}
+        </svg>
+        <div className="pointer-events-none absolute inset-0 flex flex-col items-center justify-center px-6 text-center">
+          <span className="line-clamp-2 text-xs text-zinc-400">{cur ? cur.label : centerLabel}</span>
+          <span className={`text-base font-semibold tabular-nums ${!cur && centerTone === 'bad' ? 'text-red-400' : ''}`}>{cur ? brl(cur.cents) : centerValue}</span>
+          {cur && <span className="text-xs text-zinc-400">{Math.round((cur.cents / total) * 100)}%</span>}
+        </div>
+      </div>
+      <ul className="w-full min-w-0 flex-1 space-y-1 text-sm">
+        {items.map((s) => (
+          <li key={s.key}>
+            <button type="button" {...pointer(s.key)}
+              onFocus={(e) => { if (e.currentTarget.matches(':focus-visible')) setActive(s.key) }} onBlur={() => setActive((a) => (a === s.key ? null : a))}
+              className={`flex w-full items-center justify-between gap-3 rounded-md px-2 py-1 text-left ${active === s.key ? 'bg-zinc-800' : ''}`}>
+              <span className="flex min-w-0 items-center gap-2">
+                <i className="inline-block size-2.5 shrink-0 rounded-sm" style={{ background: s.color }} aria-hidden />
+                <span className="truncate" title={s.label}>{s.label}</span>
+                {s.note && <span className="shrink-0 text-xs text-zinc-500">{s.note}</span>}
+              </span>
+              <span className="shrink-0 tabular-nums">{brl(s.cents)} <span className="text-xs text-zinc-500">{Math.round((s.cents / total) * 100)}%</span></span>
+            </button>
+          </li>
+        ))}
+      </ul>
+    </div>
+  )
+}
