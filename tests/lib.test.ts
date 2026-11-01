@@ -194,3 +194,24 @@ describe('idioma do aparelho', () => {
     expect(formatBytes(1_572_864, 'pt')).toBe('1,5 MB')
   })
 })
+
+import { cardStyle } from '../src/lib/cards'
+import { BANK_COLOR, FALLBACK } from '../src/lib/palette'
+
+describe('cor dos cartões', () => {
+  const accs = [{ id: 'a', name: 'Cresol' }, { id: 'b', name: 'Santander Elite' }, { id: 'c', name: 'Nubank' }, { id: 'd', name: 'Inter' }, { id: 'e', name: 'C6' }]
+  it('usa a cor da marca de cada banco, em qualquer ordem', () => {
+    expect(cardStyle(accs, 'c').color).toBe(BANK_COLOR.nubank) // roxo
+    expect(cardStyle(accs, 'a').color).toBe(BANK_COLOR.cresol) // laranja
+    expect(cardStyle(accs, 'b').color).toBe(BANK_COLOR.santander) // vermelho
+    expect(cardStyle([...accs].reverse(), 'c').color).toBe(BANK_COLOR.nubank)
+  })
+  it('outros bancos recebem cores fixas que não repetem as da marca', () => {
+    expect(cardStyle(accs, 'd').color).toBe(FALLBACK[0])
+    expect(cardStyle(accs, 'e').color).toBe(FALLBACK[1])
+    expect(Object.values(BANK_COLOR)).not.toContain(cardStyle(accs, 'd').color)
+  })
+  it('compra sem cartão fica cinza', () => {
+    expect(cardStyle(accs, null)).toEqual({ name: 'Sem cartão', color: '#71717a' })
+  })
+})

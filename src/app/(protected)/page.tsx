@@ -6,6 +6,7 @@ import { useAccounts, useTransactions, type TxRow } from '@/hooks/useData'
 import { useCategories } from '@/hooks/useCategories'
 import { FIXED_COLOR, HBars, SERIES, StackedColumns, monthLabel, type Series } from '@/components/charts'
 import { categorize, flexibleCents, futureInstallments, groupSum, merchantKey, monthsDesc, sumCents } from '@/lib/ledger'
+import { cardStyle } from '@/lib/cards'
 import { brl, monthKey, txMonth } from '@/lib/money'
 
 const NO_CARD = '__none__'
@@ -75,7 +76,7 @@ export default function Dashboard() {
     // um bloco por cartão; a cor do cartão segue a ordem de criação e nunca muda
     const cardIds = [...accounts.map((a) => a.id), ...(rows.some((r) => !r.account_id) ? [NO_CARD] : [])]
     const series: Series[] = cardIds.map((id, i) => ({
-      key: id, color: id === NO_CARD ? '#71717a' : SERIES[i % SERIES.length],
+      key: id, color: id === NO_CARD ? '#71717a' : cardStyle(accounts, id).color,
       name: id === NO_CARD ? 'Sem cartão' : accounts.find((a) => a.id === id)!.name,
     }))
     const monthsAsc = [...months].reverse().slice(-12)

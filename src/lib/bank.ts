@@ -11,6 +11,10 @@ const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCa
 export const accountMatchesBank = (accountName: string, bank?: string): boolean =>
   isKnownBank(bank) && norm(accountName).includes(bank)
 
+/** Banco de um cartão pelo nome ("Cartão Nubank Roxinho" → nubank), se for um dos conhecidos. */
+export const bankOfAccount = (accountName: string): KnownBank | undefined =>
+  (Object.keys(BANK_LABEL) as KnownBank[]).find((b) => accountMatchesBank(accountName, b))
+
 export const matchAccount = <T extends { name: string }>(accounts: T[], bank?: string): T | undefined =>
   accounts.find((a) => accountMatchesBank(a.name, bank))
 
