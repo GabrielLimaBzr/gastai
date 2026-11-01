@@ -379,3 +379,49 @@ describe('valor em campo de texto', () => {
     expect([71240, 66000, 5, 100].map(toInput)).toEqual(['712,40', '660,00', '0,05', '1,00'])
   })
 })
+
+import { friendlyAuthError, friendlyError } from '../src/lib/errors'
+import { validateAuth } from '../src/lib/authForm'
+
+describe('mensagens de erro claras', () => {
+  it('login e cadastro: traduz o erro do servidor e diz o que fazer', () => {
+    expect(friendlyAuthError({ message: 'Invalid login credentials', error_code: 'invalid_credentials' })).toMatch(/E-mail ou senha incorretos/)
+    expect(friendlyAuthError({ message: 'Email not confirmed', error_code: 'email_not_confirmed' })).toMatch(/confirmado/)
+    expect(friendlyAuthError({ message: 'User already registered' })).toMatch(/Já existe uma conta/)
+    expect(friendlyAuthError({ message: 'Password should be at least 6 characters.', error_code: 'weak_password' })).toMatch(/pelo menos 6 caracteres/)
+    expect(friendlyAuthError({ message: 'email rate limit exceeded', error_code: 'over_email_send_rate_limit', status: 429 })).toMatch(/Muitas tentativas/)
+    expect(friendlyAuthError({ message: 'Failed to fetch' })).toMatch(/Sem conexão/)
+    expect(friendlyAuthError({ message: 'Signups not allowed for this instance' })).toMatch(/desativado/)
+  })
+  it('nenhuma mensagem mostra texto técnico em inglês', () => {
+    for (const e of [{ message: 'boom' }, { message: 'JWT expired' }, { code: '23505', message: 'duplicate key value violates unique constraint' }, { code: '42501', message: 'new row violates row-level security policy' }]) {
+      expect(friendlyAuthError(e)).not.toMatch(/violates|duplicate|JWT|boom|policy/i)
+      expect(friendlyError(e, 'salvar a meta')).not.toMatch(/violates|duplicate|JWT|boom|policy/i)
+    }
+  })
+  it('ações: dizem o que falhou e por quê', () => {
+    expect(friendlyError({ code: '23505' }, 'criar o cartão')).toBe('Não foi possível criar o cartão. Esse item já existe.')
+    expect(friendlyError({ message: 'Failed to fetch' }, 'salvar')).toMatch(/Sem conexão/)
+    expect(friendlyError({ code: '42703', message: 'column does not exist' })).toMatch(/atualização/)
+    expect(friendlyError({ message: 'JWT expired', code: 'PGRST303' })).toMatch(/sessão expirou/)
+    expect(friendlyError(new Error('qualquer coisa'), 'excluir a fatura')).toMatch(/^Não foi possível excluir a fatura\. Ocorreu um erro inesperado/)
+  })
+})
+
+describe('validação do cadastro', () => {
+  const f = { email: 'a@b.com', password: 'senhaforte1', confirm: 'senhaforte1' }
+  it('aceita dados corretos', () => {
+    expect(validateAuth('up', f)).toEqual({})
+    expect(validateAuth('in', { ...f, confirm: '' })).toEqual({})
+  })
+  it('aponta cada campo com problema', () => {
+    expect(validateAuth('in', { email: '', password: '', confirm: '' })).toEqual({ email: 'Informe o seu e-mail.', password: 'Informe a sua senha.' })
+    expect(validateAuth('in', { ...f, email: 'sem-arroba' }).email).toMatch(/não parece válido/)
+    expect(validateAuth('up', { ...f, password: 'curta', confirm: 'curta' }).password).toMatch(/pelo menos 8/)
+    expect(validateAuth('up', { ...f, confirm: 'outra-senha' }).confirm).toBe('As senhas não são iguais.')
+    expect(validateAuth('up', { ...f, confirm: '' }).confirm).toMatch(/Digite a senha de novo/)
+  })
+  it('no login não exige o tamanho mínimo (contas antigas continuam entrando)', () => {
+    expect(validateAuth('in', { email: 'a@b.com', password: '123', confirm: '' })).toEqual({})
+  })
+})

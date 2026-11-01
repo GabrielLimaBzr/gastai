@@ -1,5 +1,6 @@
 'use client'
 import { useState } from 'react'
+import { friendlyError } from '@/lib/errors'
 
 /** Campo do dia de vencimento da fatura (1–31). Só mostra "Salvar" quando o valor muda. */
 export function DueDayField({ value, onSave, label = 'Vence dia' }: { value: number | null; onSave: (day: number | null) => Promise<void>; label?: string }) {
@@ -11,7 +12,7 @@ export function DueDayField({ value, onSave, label = 'Vence dia' }: { value: num
 
   async function save() {
     setErr('')
-    try { await onSave(day) } catch (e) { setErr((e as Error).message) }
+    try { await onSave(day) } catch (e) { setErr(friendlyError(e, 'salvar o dia')) }
   }
   return (
     <span className="inline-flex flex-wrap items-center gap-2 text-sm text-zinc-400">

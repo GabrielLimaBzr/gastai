@@ -7,6 +7,7 @@ import { cardStyle, type CardAccount } from '@/lib/cards'
 import { colorWarnings, isHex } from '@/lib/color'
 import { PRESET_COLORS } from '@/lib/palette'
 import { DueDayField } from '@/components/DueDayField'
+import { friendlyError } from '@/lib/errors'
 
 /** Lista dos cartões com a cor de cada um; tocar na cor abre as opções (ou uma cor livre). */
 export function CardColors({ accounts, onChanged }: { accounts: (CardAccount & { due_day?: number | null })[]; onChanged: () => void }) {
@@ -18,7 +19,7 @@ export function CardColors({ accounts, onChanged }: { accounts: (CardAccount & {
   async function save(id: string, color: string | null) {
     setMsg('')
     const { error } = await supabase.from('accounts').update({ color }).eq('id', id)
-    if (error) return setMsg(`Não consegui salvar a cor: ${error.message}`)
+    if (error) return setMsg(friendlyError(error, 'salvar a cor do cartão'))
     setCustom(null)
     onChanged()
   }

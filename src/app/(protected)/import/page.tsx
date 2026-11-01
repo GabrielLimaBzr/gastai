@@ -11,9 +11,11 @@ import { sha256Hex } from '@/lib/pdfInvoice'
 import { brl } from '@/lib/money'
 import { useCategories } from '@/hooks/useCategories'
 import { Dropzone } from '@/components/Dropzone'
+import { Alert } from '@/components/Alert'
 import { CardColors } from '@/components/CardColors'
 import { ImportedStatements } from '@/components/ImportedStatements'
 import type { Tx } from '@/lib/types'
+import { friendlyError } from '@/lib/errors'
 
 interface Account { id: string; name: string; color: string | null; due_day: number | null }
 type Preview = {
@@ -94,7 +96,7 @@ export default function Import() {
         if (accountId === CREATE) {
           accName = BANK_LABEL[preview.bank as keyof typeof BANK_LABEL]
           const { data, error } = await supabase.from('accounts').insert({ name: accName, kind: 'card' }).select('id').single()
-          if (error) return setMsg(`Não consegui criar o cartão ${accName}: ${error.message}`)
+          if (error) return setMsg(friendlyError(error, `criar o cartão ${accName}`))
           accId = data.id
         } else {
           const chosen = accounts.find((a) => a.id === accountId)!
@@ -107,7 +109,7 @@ export default function Import() {
           account_id: accId, reference_month: `${preview.billedMonth}-01`, file_hash: preview.fileHash,
           total_cents: preview.txs.reduce((s, t) => s + t.amount_cents, 0),
         }).select('id').single()
-        if (error) return setMsg(error.code === '23505' ? 'Esta fatura já foi importada (veja em "Faturas importadas").' : error.message)
+        if (error) return setMsg(error.code === '23505' ? 'Esta fatura já foi importada (veja em "Faturas importadas").' : friendlyError(error, 'registrar a fatura'))
         statementId = data.id
         // o PDF traz a data de vencimento: guarda o dia no cartão (se ainda não tinha) para o calendário
         const known = accounts.find((a) => a.id === accId)
@@ -132,7 +134,7 @@ export default function Import() {
       if (error) {
         // não deixa uma fatura "vazia" travando a reimportação do mesmo arquivo
         if (statementId) await supabase.from('statements').delete().eq('id', statementId)
-        return setMsg(`Não salvou: ${error.message}`)
+        return setMsg(friendlyError(error, 'salvar os lançamentos'))
       }
       setMsg(`${rows.length} lançamentos processados${accName ? ` em «${accName}»` : ''}.`)
       setPreview(null); setAccountId(''); setFileKey((k) => k + 1); setReloadKey((k) => k + 1)
@@ -154,7 +156,7 @@ export default function Import() {
           <input className="input w-24 py-1" type="number" value={year} onChange={(e) => setYear(+e.target.value)} />
         </label>
       </div>
-      {msg && <p className="text-sm text-amber-300" role="status">{msg}</p>}
+      {msg && <Alert kind={/lançamentos processados/.test(msg) ? 'success' : /^Não foi possível/.test(msg) ? 'error' : 'warning'}>{msg}</Alert>}
       {preview && preview.txs.length > 0 && (
         <div className="card space-y-3">
           <PreviewHeader p={preview} onMonth={(m) => setPreview({ ...preview, billedMonth: m })} />

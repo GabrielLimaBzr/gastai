@@ -3,6 +3,7 @@ import { useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { useBills, type Bill } from '@/hooks/useBills'
 import { brl, toCents, toInput } from '@/lib/money'
+import { friendlyError } from '@/lib/errors'
 
 export default function Bills() {
   const supabase = createClient()
@@ -16,7 +17,7 @@ export default function Bills() {
   async function run(fn: () => PromiseLike<{ error: { message: string } | null }>) {
     setMsg('')
     const { error } = await fn()
-    if (error) return setMsg(`Não salvou: ${error.message}`)
+    if (error) return setMsg(friendlyError(error, 'salvar a conta'))
     reload()
   }
   async function add() {

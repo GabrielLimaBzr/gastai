@@ -9,6 +9,7 @@ import { categorize, groupSum, merchantKey, monthsDesc, sumCents, type CatState 
 import { downloadCsv, toCsv } from '@/lib/exportCsv'
 import { brl, txMonth } from '@/lib/money'
 import { monthLabel } from '@/components/charts'
+import { friendlyError } from '@/lib/errors'
 
 type Status = 'all' | CatState
 type View = 'rows' | 'groups'
@@ -108,7 +109,7 @@ export default function Transactions() {
       if (rule) await saveRule(targets[0].description, categoryId)
       setMsg(`${ids.size} compra(s) → ${name}${rule ? ' · regra salva para as próximas importações' : ''}`)
     } catch (e) {
-      setMsg(`Não salvou: ${(e as Error).message}`)
+      setMsg(friendlyError(e, 'salvar a categoria'))
       reload()
     }
   }

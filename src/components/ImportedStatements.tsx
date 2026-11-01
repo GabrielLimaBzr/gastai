@@ -3,6 +3,7 @@ import { useCallback, useEffect, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { brl } from '@/lib/money'
 import { monthLabel } from '@/components/charts'
+import { friendlyError } from '@/lib/errors'
 
 interface Stmt {
   id: string
@@ -43,7 +44,7 @@ export function ImportedStatements({ accounts, reloadKey, onChanged }: {
     const a = await supabase.from('statements').update({ account_id: accountId }).eq('id', s.id)
     const b = a.error ? a : await supabase.from('transactions').update({ account_id: accountId }).eq('statement_id', s.id)
     setBusy('')
-    if (b.error) return setMsg(`Não consegui trocar: ${b.error.message}`)
+    if (b.error) return setMsg(friendlyError(b.error, 'trocar o cartão desta fatura'))
     setMsg(`Fatura movida para «${accounts.find((x) => x.id === accountId)?.name}».`)
     await load(); onChanged()
   }
@@ -54,7 +55,7 @@ export function ImportedStatements({ accounts, reloadKey, onChanged }: {
     setBusy(s.id); setMsg('')
     const { error } = await supabase.from('statements').delete().eq('id', s.id)
     setBusy('')
-    if (error) return setMsg(`Não consegui excluir: ${error.message}`)
+    if (error) return setMsg(friendlyError(error, 'excluir a fatura'))
     setMsg('Fatura excluída.')
     await load(); onChanged()
   }

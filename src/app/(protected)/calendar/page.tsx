@@ -12,6 +12,7 @@ import { buildEvents, daysUntil, dueLabel, monthGrid, type DueEvent } from '@/li
 import { addMonths } from '@/lib/ledger'
 import { brl, toCents, toInput } from '@/lib/money'
 import { useSharedMonth } from '@/contexts/month'
+import { friendlyError } from '@/lib/errors'
 
 const WEEK = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 
@@ -80,7 +81,7 @@ export default function Calendar() {
       }
       await pay.markPaid(e.kind, e.ref, ym, cents)
     } catch (err) {
-      setMsg(`Não salvou: ${(err as Error).message}`)
+      setMsg(friendlyError(err, 'salvar o pagamento'))
     }
   }
 
@@ -90,7 +91,7 @@ export default function Calendar() {
     if (v == null) return
     const cents = toCents(v)
     if (!(cents > 0)) return setMsg('Informe um valor maior que zero.')
-    try { await setAmount(e.ref, ym, cents) } catch (err) { setMsg(`Não salvou: ${(err as Error).message}`) }
+    try { await setAmount(e.ref, ym, cents) } catch (err) { setMsg(friendlyError(err, 'salvar o valor da conta')) }
   }
 
   return (

@@ -10,6 +10,7 @@ import { goalStatus, suggestGoal, type GoalState } from '@/lib/goals'
 import { categoryByMonth, categorySeries } from '@/lib/trends'
 import { brl, toCents, toInput } from '@/lib/money'
 import { useSharedMonth } from '@/contexts/month'
+import { friendlyError } from '@/lib/errors'
 
 // estado = ícone + palavra + cor (nunca só a cor)
 const LOOK: Record<GoalState, { label: string; bar: string; text: string; Icon: typeof CheckCircle2 }> = {
@@ -41,7 +42,7 @@ export default function Goals() {
   async function save(n: string, cents: number | null) {
     setMsg('')
     try { await setGoal(n, cents); setMsg(cents ? `Meta de «${n}»: ${brl(cents)} por mês.` : `Meta de «${n}» removida.`) }
-    catch (e) { setMsg(`Não salvou: ${(e as Error).message}`) }
+    catch (e) { setMsg(friendlyError(e, 'salvar a meta')) }
   }
   async function add() {
     const cents = toCents(value)
