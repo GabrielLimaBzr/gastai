@@ -3,7 +3,7 @@ import type { Tx } from '../types'
 export interface Item { x: number; y: number; str: string }
 export interface PdfPage { items: Item[] }
 
-export type Bank = 'santander' | 'cresol' | 'generic'
+export type Bank = 'santander' | 'cresol' | 'bb' | 'generic'
 
 export interface ParsedInvoice {
   bank: Bank

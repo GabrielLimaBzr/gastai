@@ -155,7 +155,7 @@ export default function Import() {
         <details className="text-sm">
           <summary className="cursor-pointer py-1 text-emerald-400">Onde consigo o arquivo da fatura?</summary>
           <ul className="mt-2 space-y-2 text-zinc-400">
-            <li><b className="text-zinc-200">PDF (Santander, Cresol):</b> no app ou no internet banking do banco, abra a fatura e procure a opção de baixar ou salvar em PDF.</li>
+            <li><b className="text-zinc-200">PDF (Santander, Cresol, Banco do Brasil):</b> no app ou no internet banking do banco, abra a fatura e procure a opção de baixar ou salvar em PDF.</li>
             <li><b className="text-zinc-200">CSV (Nubank):</b> no app, abra a fatura e use a opção de exportar. O nome do arquivo (<code>Nubank_AAAA-MM-DD.csv</code>) traz o vencimento, então não renomeie.</li>
             <li><b className="text-zinc-200">Outros bancos:</b> ainda não têm leitura própria. Se o seu banco exporta CSV, avise qual é para incluirmos.</li>
             <li className="text-xs text-zinc-500">O PDF é lido no seu aparelho e não é enviado: só os lançamentos entram no seu cadastro.</li>

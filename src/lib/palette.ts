@@ -13,7 +13,7 @@ export interface PaletteSet {
   fixed: string
   none: string
   /** Cor de marca de cada banco (laranja e vermelho foram afastados para não se confundirem). */
-  bank: { nubank: string; cresol: string; santander: string }
+  bank: { nubank: string; cresol: string; santander: string; bb: string }
   /** Cartões de outros bancos: tons que não se parecem com os de marca. */
   fallback: string[]
   /** Fatias da rosca, nesta ordem: todas as vizinhas (inclusive a que fecha o anel) passam no validador. */
@@ -33,7 +33,7 @@ const SETS: Record<Mode, PaletteSet> = {
     rankBar: '#3987e5',
     fixed: '#9aa8b8',
     none: '#6b7787',
-    bank: { nubank: '#a05ae0', cresol: '#cb7e19', santander: '#cc1331' },
+    bank: { nubank: '#a05ae0', cresol: '#cb7e19', santander: '#cc1331', bb: '#e3d23a' },
     fallback: ['#3987e5', '#199e70', '#da709d'],
     ring: ['#3987e5', '#199e70', '#c98500', '#d55181', '#008300'],
     ringOther: '#6b7787',
@@ -52,7 +52,7 @@ const SETS: Record<Mode, PaletteSet> = {
     rankBar: '#2a78d6',
     fixed: '#7a8797',
     none: '#8793a2',
-    bank: { nubank: '#7f36bc', cresol: '#df7b0c', santander: '#b7162d' },
+    bank: { nubank: '#7f36bc', cresol: '#df7b0c', santander: '#b7162d', bb: '#857000' },
     fallback: ['#3987e5', '#199e70', '#b572a7'],
     ring: ['#2a78d6', '#0f9b6c', '#6250d6', '#d4457f', '#b27500'],
     ringOther: '#8793a2',

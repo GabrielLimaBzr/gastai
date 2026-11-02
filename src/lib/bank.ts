@@ -1,15 +1,23 @@
 import type { Tx } from './types'
 
-export const BANK_LABEL = { santander: 'Santander', cresol: 'Cresol', nubank: 'Nubank' } as const
+export const BANK_LABEL = { santander: 'Santander', cresol: 'Cresol', nubank: 'Nubank', bb: 'Banco do Brasil' } as const
 export type KnownBank = keyof typeof BANK_LABEL
 
 export const isKnownBank = (bank?: string): bank is KnownBank => !!bank && bank in BANK_LABEL
+
+/** Como o cartão pode se chamar: "BB" só vale como palavra inteira para não casar com outros nomes. */
+const NAME_OF: Record<KnownBank, RegExp> = {
+  santander: /santander/,
+  cresol: /cresol/,
+  nubank: /nubank/,
+  bb: /banco\s*do\s*brasil|ourocard|\bbb\b/,
+}
 
 const norm = (s: string) => s.normalize('NFD').replace(/[̀-ͯ]/g, '').toLowerCase()
 
 /** O nome do cartão cadastrado cita o banco da fatura? ("Santander Elite", "Cartão Cresol"…) */
 export const accountMatchesBank = (accountName: string, bank?: string): boolean =>
-  isKnownBank(bank) && norm(accountName).includes(bank)
+  isKnownBank(bank) && NAME_OF[bank].test(norm(accountName))
 
 /** Banco de um cartão pelo nome ("Cartão Nubank Roxinho" → nubank), se for um dos conhecidos. */
 export const bankOfAccount = (accountName: string): KnownBank | undefined =>

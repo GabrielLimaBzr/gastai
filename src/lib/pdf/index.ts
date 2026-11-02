@@ -1,5 +1,6 @@
 import { parseGenericInvoice } from '../pdfInvoice'
 import { groupRows, pagesText, rowText } from './common'
+import { parseBB } from './bb'
 import { parseCresol } from './cresol'
 import { parseSantander } from './santander'
 import type { ParsedInvoice, PdfPage } from './types'
@@ -11,6 +12,7 @@ export function parseInvoice(pages: PdfPage[], fallbackYear: number): ParsedInvo
   const text = pagesText(pages)
   if (/CRESOL/i.test(text) && /LAN[ÇC]AMENTOS/.test(text)) return parseCresol(pages)
   if (/santander/i.test(text) && /Detalhamento da Fatura/.test(text)) return parseSantander(pages)
+  if (/banco\s+do\s+brasil|ourocard|bb\.com\.br/i.test(text) && /\d{2}\/\d{2}(\/\d{2,4})?\s+.+\s+-?\d[\d.]*,\d{2}/.test(text)) return parseBB(pages)
 
   const lines = pages.flatMap((p) => groupRows(p.items).map(rowText))
   return { bank: 'generic', dueDate: null, statementTotalCents: null, txs: parseGenericInvoice(lines, fallbackYear) }

@@ -84,3 +84,33 @@ describe('banco desconhecido', () => {
     expect(r.txs[0].amount_cents).toBe(19990)
   })
 })
+
+// Banco do Brasil (layout presumido: uma linha por lançamento; sem fatura real para validar)
+const bb: PdfPage[] = [
+  { items: [t(10, 750, 'Banco do Brasil Ourocard'), t(10, 740, 'Vencimento'), t(100, 740, '10/11/2026'), t(10, 730, 'Total da fatura'), t(100, 730, 'R$ 360,00')] },
+  {
+    items: [
+      t(10, 600, '05/10'), t(40, 600, 'PAGAMENTO RECEBIDO'), t(300, 600, '500,00-'),
+      t(10, 580, '12/10'), t(40, 580, 'SUPERMERCADO XYZ'), t(250, 580, 'BR'), t(300, 580, '200,00'),
+      t(10, 560, '15/10'), t(40, 560, 'LOJA ABC PARC 02/10'), t(250, 560, 'BR'), t(300, 560, '120,00'),
+      t(10, 540, '20/10'), t(40, 540, 'ESTORNO LOJA'), t(300, 540, '10,00 CR'),
+      t(10, 520, '02/10'), t(40, 520, 'SALDO FATURA ANTERIOR'), t(300, 520, '500,00'),
+      t(10, 500, '28/12'), t(40, 500, 'COMPRA DE DEZEMBRO'), t(300, 500, '50,00'),
+    ],
+  },
+]
+
+describe('Banco do Brasil', () => {
+  it('lê lançamentos, parcelas, créditos e ignora pagamento/saldo anterior', () => {
+    const r = parseInvoice(bb, 2026)
+    expect(r.bank).toBe('bb')
+    expect(r.dueDate).toBe('2026-11-10')
+    expect(r.statementTotalCents).toBe(36000)
+    expect(r.txs.map((x) => [x.description, x.amount_cents, x.installment_no, x.installment_total, x.occurred_on])).toEqual([
+      ['SUPERMERCADO XYZ', 20000, null, null, '2026-10-12'],
+      ['LOJA ABC', 12000, 2, 10, '2026-10-15'],
+      ['ESTORNO LOJA', -1000, null, null, '2026-10-20'],
+      ['COMPRA DE DEZEMBRO', 5000, null, null, '2025-12-28'],
+    ])
+  })
+})
