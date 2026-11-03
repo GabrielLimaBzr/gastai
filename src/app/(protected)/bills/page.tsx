@@ -14,6 +14,8 @@ export default function Bills() {
   const [day, setDay] = useState('5')
   const [variable, setVariable] = useState(false)
   const [msg, setMsg] = useState('')
+  const [editing, setEditing] = useState<string | null>(null)
+  const [draft, setDraft] = useState({ name: '', value: '', day: '' })
 
   async function run(fn: () => PromiseLike<{ error: { message: string } | null }>) {
     setMsg('')
@@ -24,13 +26,23 @@ export default function Bills() {
   async function add() {
     const cents = toCents(value)
     if (!name.trim() || !(cents > 0)) return setMsg('Informe o nome e um valor maior que zero.')
-    await run(() => supabase.from('recurring_bills').insert({ name: name.trim(), expected_cents: cents, due_day: +day, variable }))
+    const d = Math.trunc(+day)
+    if (!(d >= 1 && d <= 31)) return setMsg('O dia do vencimento precisa estar entre 1 e 31.')
+    await run(() => supabase.from('recurring_bills').insert({ name: name.trim(), expected_cents: cents, due_day: d, variable }))
     setName(''); setValue(''); setVariable(false)
   }
-  function editValue(b: Bill) {
-    const v = prompt(`${b.variable ? 'Estimativa' : 'Valor'} mensal de «${b.name}» (R$):`, toInput(b.expected_cents))
-    const cents = v ? toCents(v) : 0
-    if (cents > 0) run(() => supabase.from('recurring_bills').update({ expected_cents: cents }).eq('id', b.id))
+  function startEdit(b: Bill) {
+    setMsg('')
+    setDraft({ name: b.name, value: toInput(b.expected_cents), day: String(b.due_day) })
+    setEditing(b.id)
+  }
+  async function saveEdit(b: Bill) {
+    const cents = toCents(draft.value)
+    const d = Math.trunc(+draft.day)
+    if (!draft.name.trim() || !(cents > 0)) return setMsg('Informe o nome e um valor maior que zero.')
+    if (!(d >= 1 && d <= 31)) return setMsg('O dia do vencimento precisa estar entre 1 e 31.')
+    await run(() => supabase.from('recurring_bills').update({ name: draft.name.trim(), expected_cents: cents, due_day: d }).eq('id', b.id))
+    setEditing(null)
   }
 
   const fixed = bills.filter((b) => !b.variable).reduce((s, b) => s + b.expected_cents, 0)
@@ -63,21 +75,43 @@ export default function Bills() {
         <ul className="card divide-y divide-zinc-800 p-0">
           {bills.map((b) => (
             <li key={b.id} className="space-y-2 px-4 py-3 text-sm">
-              <div className="flex items-baseline justify-between gap-3">
-                <span className="min-w-0">
-                  <span className="break-words font-medium">{b.name}</span>{' '}
-                  <span className="text-zinc-500">vence dia {b.due_day}</span>
-                  {b.variable && <span className="chip ml-2">variável</span>}
-                </span>
-                <span className="shrink-0 tabular-nums">{b.variable && '~'}{brl(b.expected_cents)}{b.variable && <span className="text-xs text-zinc-500"> estim.</span>}</span>
-              </div>
-              <div className="flex flex-wrap gap-2">
-                <button className="btn-ghost" onClick={() => editValue(b)}>{b.variable ? 'Editar estimativa' : 'Editar valor'}</button>
-                <button className="btn-ghost" onClick={() => run(() => supabase.from('recurring_bills').update({ variable: !b.variable }).eq('id', b.id))}>
-                  {b.variable ? 'Tornar fixa' : 'Tornar variável'}
-                </button>
-                <button className="btn-ghost text-red-300" onClick={() => { if (confirm(`Remover «${b.name}»? Os meses já pagos continuam no histórico.`)) run(() => supabase.from('recurring_bills').update({ active: false }).eq('id', b.id)) }}>Remover</button>
-              </div>
+              {editing === b.id ? (
+                <form className="space-y-3" onSubmit={(e) => { e.preventDefault(); saveEdit(b) }}>
+                  <div className="flex flex-wrap gap-3">
+                    <label className="block min-w-0 basis-full text-xs text-zinc-400 sm:basis-0 sm:flex-1">Nome
+                      <input className="input mt-1 w-full" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
+                    </label>
+                    <label className="block text-xs text-zinc-400">{b.variable ? 'Estimativa (R$)' : 'Valor (R$)'}
+                      <input className="input mt-1 w-36" inputMode="decimal" value={draft.value} onChange={(e) => setDraft({ ...draft, value: e.target.value })} />
+                    </label>
+                    <label className="block text-xs text-zinc-400">Vence dia
+                      <input className="input mt-1 w-24" type="number" inputMode="numeric" min={1} max={31} value={draft.day} onChange={(e) => setDraft({ ...draft, day: e.target.value })} />
+                    </label>
+                  </div>
+                  <div className="flex gap-2">
+                    <button type="submit" className="btn">Salvar</button>
+                    <button type="button" className="btn-ghost" onClick={() => { setEditing(null); setMsg('') }}>Cancelar</button>
+                  </div>
+                </form>
+              ) : (
+                <>
+                  <div className="flex items-baseline justify-between gap-3">
+                    <span className="min-w-0">
+                      <span className="break-words font-medium">{b.name}</span>{' '}
+                      <span className="text-zinc-500">vence dia {b.due_day}</span>
+                      {b.variable && <span className="chip ml-2">variável</span>}
+                    </span>
+                    <span className="shrink-0 tabular-nums">{b.variable && '~'}{brl(b.expected_cents)}{b.variable && <span className="text-xs text-zinc-500"> estim.</span>}</span>
+                  </div>
+                  <div className="flex flex-wrap gap-2">
+                    <button className="btn-ghost" onClick={() => startEdit(b)}>Editar</button>
+                    <button className="btn-ghost" onClick={() => run(() => supabase.from('recurring_bills').update({ variable: !b.variable }).eq('id', b.id))}>
+                      {b.variable ? 'Tornar fixa' : 'Tornar variável'}
+                    </button>
+                    <button className="btn-ghost text-red-300" onClick={() => { if (confirm(`Remover «${b.name}»? Os meses já pagos continuam no histórico.`)) run(() => supabase.from('recurring_bills').update({ active: false }).eq('id', b.id)) }}>Remover</button>
+                  </div>
+                </>
+              )}
             </li>
           ))}
         </ul>
