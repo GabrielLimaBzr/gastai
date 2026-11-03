@@ -5,6 +5,9 @@ import { useBills, type Bill } from '@/hooks/useBills'
 import { brl, toCents, toInput } from '@/lib/money'
 import { friendlyError } from '@/lib/errors'
 import { PageHeader } from '@/components/ui'
+import { DayInput, MoneyInput } from '@/components/MoneyInput'
+import { useDialogs } from '@/contexts/dialogs'
+import { moneyField } from '@/lib/mask'
 
 export default function Bills() {
   const supabase = createClient()
@@ -15,6 +18,7 @@ export default function Bills() {
   const [variable, setVariable] = useState(false)
   const [msg, setMsg] = useState('')
   const [editing, setEditing] = useState<string | null>(null)
+  const { confirm } = useDialogs()
   const [draft, setDraft] = useState({ name: '', value: '', day: '' })
 
   async function run(fn: () => PromiseLike<{ error: { message: string } | null }>) {
@@ -33,7 +37,7 @@ export default function Bills() {
   }
   function startEdit(b: Bill) {
     setMsg('')
-    setDraft({ name: b.name, value: toInput(b.expected_cents), day: String(b.due_day) })
+    setDraft({ name: b.name, value: moneyField(b.expected_cents), day: String(b.due_day) })
     setEditing(b.id)
   }
   async function saveEdit(b: Bill) {
@@ -54,9 +58,9 @@ export default function Bills() {
       <div className="card space-y-3">
         <div className="flex flex-wrap gap-2">
           <input className="input min-w-0 basis-full md:basis-0 md:flex-1" placeholder="Conta (ex: Aluguel, Energia)" value={name} onChange={(e) => setName(e.target.value)} />
-          <input className="input w-36" inputMode="decimal" placeholder={variable ? 'Estimativa (R$)' : 'Valor (R$)'} value={value} onChange={(e) => setValue(e.target.value)} />
+          <div className="w-40"><MoneyInput placeholder={variable ? 'Estimativa' : 'Valor'} aria-label={variable ? 'Estimativa' : 'Valor'} value={value} onValueChange={setValue} /></div>
           <label className="flex items-center gap-2 text-sm text-zinc-400">Vence dia
-            <input className="input w-20" type="number" min={1} max={31} value={day} onChange={(e) => setDay(e.target.value)} />
+            <DayInput className="w-16" aria-label="Dia do vencimento" value={day} onValueChange={setDay} />
           </label>
           <button className="btn" onClick={add}>Adicionar</button>
         </div>
@@ -82,10 +86,10 @@ export default function Bills() {
                       <input className="input mt-1 w-full" value={draft.name} onChange={(e) => setDraft({ ...draft, name: e.target.value })} />
                     </label>
                     <label className="block text-xs text-zinc-400">{b.variable ? 'Estimativa (R$)' : 'Valor (R$)'}
-                      <input className="input mt-1 w-36" inputMode="decimal" value={draft.value} onChange={(e) => setDraft({ ...draft, value: e.target.value })} />
+                      <div className="mt-1 w-40"><MoneyInput value={draft.value} onValueChange={(v) => setDraft({ ...draft, value: v })} /></div>
                     </label>
                     <label className="block text-xs text-zinc-400">Vence dia
-                      <input className="input mt-1 w-24" type="number" inputMode="numeric" min={1} max={31} value={draft.day} onChange={(e) => setDraft({ ...draft, day: e.target.value })} />
+                      <DayInput className="mt-1 w-24" value={draft.day} onValueChange={(v) => setDraft({ ...draft, day: v })} />
                     </label>
                   </div>
                   <div className="flex gap-2">
@@ -108,7 +112,7 @@ export default function Bills() {
                     <button className="btn-ghost" onClick={() => run(() => supabase.from('recurring_bills').update({ variable: !b.variable }).eq('id', b.id))}>
                       {b.variable ? 'Tornar fixa' : 'Tornar variável'}
                     </button>
-                    <button className="btn-ghost text-red-300" onClick={() => { if (confirm(`Remover «${b.name}»? Os meses já pagos continuam no histórico.`)) run(() => supabase.from('recurring_bills').update({ active: false }).eq('id', b.id)) }}>Remover</button>
+                    <button className="btn-ghost text-red-300" onClick={async () => { if (await confirm({ title: `Remover ${b.name}?`, description: 'Os meses já pagos continuam no histórico.', confirmLabel: 'Remover', danger: true })) run(() => supabase.from('recurring_bills').update({ active: false }).eq('id', b.id)) }}>Remover</button>
                   </div>
                 </>
               )}

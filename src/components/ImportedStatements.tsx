@@ -1,5 +1,6 @@
 'use client'
 import { useCallback, useEffect, useState } from 'react'
+import { useDialogs } from '@/contexts/dialogs'
 import { createClient } from '@/lib/supabase/client'
 import { brl } from '@/lib/money'
 import { monthLabel } from '@/components/charts'
@@ -21,6 +22,7 @@ export function ImportedStatements({ accounts, reloadKey, onChanged }: {
   onChanged: () => void
 }) {
   const supabase = createClient()
+  const { confirm } = useDialogs()
   const [list, setList] = useState<Stmt[]>([])
   const [busy, setBusy] = useState('')
   const [msg, setMsg] = useState('')
@@ -51,7 +53,7 @@ export function ImportedStatements({ accounts, reloadKey, onChanged }: {
 
   async function remove(s: Stmt) {
     const n = s.transactions[0]?.count ?? 0
-    if (!confirm(`Excluir esta fatura e as ${n} compras dela? Depois você pode importar o arquivo de novo.`)) return
+    if (!(await confirm({ title: 'Excluir esta fatura?', description: `As ${n} compras dela também serão excluídas. Depois você pode importar o arquivo de novo.`, confirmLabel: 'Excluir', danger: true }))) return
     setBusy(s.id); setMsg('')
     const { error } = await supabase.from('statements').delete().eq('id', s.id)
     setBusy('')

@@ -1,5 +1,7 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { useDialogs } from '@/contexts/dialogs'
+import { MoneyInput } from '@/components/MoneyInput'
 import { AlertTriangle, CheckCircle2, OctagonX, Trash2 } from 'lucide-react'
 import { useTransactions } from '@/hooks/useData'
 import { useCategories } from '@/hooks/useCategories'
@@ -23,6 +25,7 @@ const LOOK: Record<GoalState, { label: string; bar: GoalState; text: string; Ico
 }
 
 export default function Goals() {
+  const { askMoney } = useDialogs()
   const { rows, loading } = useTransactions()
   const { cats, ready, setGoal } = useCategories()
   const [name, setName] = useState('')
@@ -53,10 +56,8 @@ export default function Goals() {
     await save(name, cents); setName(''); setValue('')
   }
   async function edit(n: string, current: number) {
-    const v = prompt(`Nova meta mensal para «${n}» (R$):`, toInput(current))
-    if (!v) return
-    const cents = toCents(v)
-    if (cents > 0) await save(n, cents)
+    const cents = await askMoney({ title: `Meta mensal de ${n}`, description: 'Limite de gasto por mês nesta categoria.', initialCents: current })
+    if (cents) await save(n, cents)
   }
 
   if (loading || !ready) return <PageSkeleton />
@@ -105,7 +106,7 @@ export default function Goals() {
             <option value="">Escolher categoria…</option>
             {options.map((n) => <option key={n}>{n}</option>)}
           </select>
-          <input className="input" inputMode="decimal" placeholder="Limite mensal (R$)" value={value} onChange={(e) => setValue(e.target.value)} aria-label="Limite mensal" />
+          <MoneyInput placeholder="Limite mensal" value={value} onValueChange={setValue} aria-label="Limite mensal" />
           <button className="btn" onClick={add}>Definir meta</button>
         </div>
         {suggestion && (

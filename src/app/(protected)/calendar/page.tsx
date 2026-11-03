@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { useDialogs } from '@/contexts/dialogs'
 import { Check, ChevronLeft, ChevronRight } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccountsFull, useTransactions } from '@/hooks/useData'
@@ -22,6 +23,7 @@ const WEEK = ['D', 'S', 'T', 'Q', 'Q', 'S', 'S']
 const dm = (iso: string) => `${iso.slice(8, 10)}/${iso.slice(5, 7)}`
 
 export default function Calendar() {
+  const { askMoney } = useDialogs()
   const supabase = createClient()
   const { rows, loading } = useTransactions()
   const { accounts, setDueDay } = useAccountsFull()
@@ -70,17 +72,15 @@ export default function Calendar() {
       if (p) return await pay.unmark(p.id)
       let cents = e.cents
       if (e.kind === 'bill' && e.variable && e.estimated) { // conta variável: confirma o valor real da conta antes de dar baixa
-        const v = prompt(`Valor da conta «${e.label}» em ${monthLabel(ym)} (R$):`, e.cents != null ? toInput(e.cents) : '')
-        if (v == null) return
-        cents = toCents(v)
-        if (!(cents > 0)) return setMsg('Informe um valor maior que zero.')
+        const v = await askMoney({ title: `Valor de ${e.label}`, description: `Valor real da conta em ${monthLabel(ym)}.`, initialCents: e.cents, confirmLabel: 'Dar baixa' })
+        if (!v) return
+        cents = v
         await setAmount(e.ref, ym, cents)
       }
       if (cents == null) { // valor ainda desconhecido: pergunta quanto foi
-        const v = prompt(`Quanto você pagou em «${e.label}»? (R$)`)
-        if (v == null) return
-        cents = toCents(v)
-        if (!(cents > 0)) return setMsg('Informe um valor maior que zero.')
+        const v = await askMoney({ title: `Quanto você pagou em ${e.label}?`, confirmLabel: 'Dar baixa' })
+        if (!v) return
+        cents = v
       }
       await pay.markPaid(e.kind, e.ref, ym, cents)
     } catch (err) {
@@ -90,10 +90,8 @@ export default function Calendar() {
 
   async function informAmount(e: DueEvent) {
     setMsg('')
-    const v = prompt(`Valor da conta «${e.label}» em ${monthLabel(ym)} (R$):`, e.cents != null ? toInput(e.cents) : '')
-    if (v == null) return
-    const cents = toCents(v)
-    if (!(cents > 0)) return setMsg('Informe um valor maior que zero.')
+    const cents = await askMoney({ title: `Valor de ${e.label}`, description: `Valor real da conta em ${monthLabel(ym)}.`, initialCents: e.cents })
+    if (!cents) return
     try { await setAmount(e.ref, ym, cents) } catch (err) { setMsg(friendlyError(err, 'salvar o valor da conta')) }
   }
 

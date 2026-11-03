@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useState } from 'react'
+import { useDialogs } from '@/contexts/dialogs'
 import { createClient } from '@/lib/supabase/client'
 import { dedupeKey } from '@/lib/dedupe'
 import { BANK_LABEL, accountMatchesBank, isKnownBank, matchAccount, nubankBilledMonth } from '@/lib/bank'
@@ -26,6 +27,7 @@ type Preview = {
 const CREATE = '__create__' // "criar o cartão do banco detectado ao salvar"
 
 export default function Import() {
+  const { confirm } = useDialogs()
   const supabase = createClient()
   const { ruleFor } = useCategories()
   const [accounts, setAccounts] = useState<Account[]>([])
@@ -102,7 +104,7 @@ export default function Import() {
           const chosen = accounts.find((a) => a.id === accountId)!
           accName = chosen.name
           if (isKnownBank(preview.bank) && !accountMatchesBank(chosen.name, preview.bank)
-            && !confirm(`Esta fatura parece ser do ${BANK_LABEL[preview.bank]}, mas o cartão escolhido é «${chosen.name}». Salvar mesmo assim?`)) return
+            && !(await confirm({ title: 'Cartão diferente do banco da fatura', description: `Esta fatura parece ser do ${BANK_LABEL[preview.bank]}, mas o cartão escolhido é «${chosen.name}». Salvar mesmo assim?`, confirmLabel: 'Salvar mesmo assim' }))) return
           accId = chosen.id
         }
         const { data, error } = await supabase.from('statements').insert({

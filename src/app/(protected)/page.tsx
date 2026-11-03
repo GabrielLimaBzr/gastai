@@ -1,5 +1,6 @@
 'use client'
 import Link from 'next/link'
+import { useDialogs } from '@/contexts/dialogs'
 import { AlertCircle, ArrowDown, ArrowUp, CalendarClock, ChevronRight, Pencil, Target } from 'lucide-react'
 import { useEffect, useMemo, useState } from 'react'
 import { createClient } from '@/lib/supabase/client'
@@ -32,6 +33,7 @@ const Section = ({ title, hint, children }: { title: string; hint?: string; chil
 )
 
 export default function Dashboard() {
+  const { askMoney } = useDialogs()
   const supabase = createClient()
   const { rows, loading } = useTransactions()
   const accounts = useAccounts()
@@ -91,10 +93,8 @@ export default function Dashboard() {
   }, [rows, month, accounts, catName, months]) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function setIncomeFor() {
-    const v = prompt(`Renda líquida de ${monthLabel(month)} (R$):`)
-    if (!v) return
-    const cents = Math.round(parseFloat(v.replace(/\./g, '').replace(',', '.')) * 100)
-    if (Number.isNaN(cents)) return
+    const cents = await askMoney({ title: `Renda de ${monthLabel(month)}`, description: 'Renda líquida total do mês (o que cai na conta).', initialCents: income[month] || null })
+    if (!cents) return
     await supabase.from('income').upsert({ source: 'Total', month: `${month}-01`, amount_cents: cents }, { onConflict: 'user_id,source,month' })
     setIncome((p) => ({ ...p, [month]: cents }))
   }

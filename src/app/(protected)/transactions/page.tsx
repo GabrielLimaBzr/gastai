@@ -1,5 +1,6 @@
 'use client'
 import { useEffect, useMemo, useState } from 'react'
+import { useDialogs } from '@/contexts/dialogs'
 import { AlertCircle, Check, Sparkles } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { useAccounts, useTransactions, type TxRow } from '@/hooks/useData'
@@ -49,6 +50,7 @@ function CategorySelect({ name, state, options, onChange }: { name: string; stat
 }
 
 export default function Transactions() {
+  const { askText } = useDialogs()
   const supabase = createClient()
   const { rows, setRows, loading, reload } = useTransactions()
   const accounts = useAccounts()
@@ -99,7 +101,7 @@ export default function Transactions() {
   async function assign(targets: TxRow[], value: string, rule: boolean) {
     let name = value
     if (value === NEW) {
-      name = (prompt('Nome da nova categoria:') ?? '').trim()
+      name = (await askText({ title: 'Nova categoria', placeholder: 'Ex.: Pets', confirmLabel: 'Criar' })) ?? ''
       if (!name) return
     }
     try {

@@ -488,3 +488,27 @@ describe('paletas por tema (claro e escuro)', () => {
     expect(cardStyle(accs, 'n').color).toBe(paletteFor('dark').bank.nubank)
   })
 })
+
+import { maskDay, maskMoney, moneyField } from '../src/lib/mask'
+describe('máscaras de entrada', () => {
+  it('dinheiro: dígitos entram da direita para a esquerda', () => {
+    expect(maskMoney('')).toBe('')
+    expect(maskMoney('1')).toBe('0,01')
+    expect(maskMoney('12')).toBe('0,12')
+    expect(maskMoney('1234')).toBe('12,34')
+    expect(maskMoney('123456789')).toBe('1.234.567,89')
+    expect(maskMoney('R$ 1.234,56abc')).toBe('1.234,56')
+    expect(maskMoney('0,00')).toBe('')
+  })
+  it('o texto mascarado converte certo para centavos', () => {
+    expect(toCents(maskMoney('123456'))).toBe(123456)
+    expect(toCents(moneyField(250000))).toBe(250000)
+  })
+  it('dia: 1 a 31', () => {
+    expect(maskDay('')).toBe('')
+    expect(maskDay('5')).toBe('5')
+    expect(maskDay('45')).toBe('31')
+    expect(maskDay('00')).toBe('1')
+    expect(maskDay('1a2')).toBe('12')
+  })
+})
