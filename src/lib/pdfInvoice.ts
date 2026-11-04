@@ -34,6 +34,7 @@ export function parseGenericInvoice(lines: string[], year: number): Tx[] {
 export const PARSERS = { generic: parseGenericInvoice } as const
 
 export async function sha256Hex(data: ArrayBuffer): Promise<string> {
+  if (!data.byteLength) throw new Error('Arquivo vazio ou já consumido: não dá para calcular o hash.')
   const buf = await crypto.subtle.digest('SHA-256', data)
   return [...new Uint8Array(buf)].map((b) => b.toString(16).padStart(2, '0')).join('')
 }

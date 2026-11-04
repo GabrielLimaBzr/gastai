@@ -65,9 +65,12 @@ export default function Import() {
     setMsg('')
     if (f.name.toLowerCase().endsWith('.pdf')) {
       const buf = await f.arrayBuffer()
-      const parsed = parseInvoice(await extractPages(buf), year)
+      // o hash vem ANTES de ler o PDF: o pdf.js "consome" o buffer (passa para o worker) e o que sobra é vazio,
+      // o que dava o mesmo hash para toda fatura e fazia a segunda importar como "já importada".
+      const fileHash = await sha256Hex(buf)
+      const parsed = parseInvoice(await extractPages(buf.slice(0)), year)
       setPreview({
-        txs: parsed.txs, source: 'pdf', fileHash: await sha256Hex(buf), bank: parsed.bank,
+        txs: parsed.txs, source: 'pdf', fileHash, bank: parsed.bank,
         billedMonth: parsed.dueDate?.slice(0, 7), declaredTotal: parsed.statementTotalCents,
         dueDay: parsed.dueDate ? Number(parsed.dueDate.slice(8, 10)) : undefined,
       })
