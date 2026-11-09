@@ -32,6 +32,9 @@ export default function Installments() {
   useEffect(() => { try { setShowIncome(localStorage.getItem('gastai:inst-income') === '1') } catch { /* sem storage */ } }, [])
   function toggleIncome(on: boolean) { setShowIncome(on); try { localStorage.setItem('gastai:inst-income', on ? '1' : '0') } catch { /* sem storage */ } }
 
+  // filtro por cartão: vale para a página toda (resumo, gráfico, meses e término dos parcelamentos)
+  const [cardFilter, setCardFilter] = useState<string | null>(null)
+
   const months = useMemo(() => monthsDesc(rows), [rows])
   const [base, setBase] = useSharedMonth(months, months[0] ?? '')
 
@@ -42,17 +45,26 @@ export default function Installments() {
   }, [base]) // eslint-disable-line react-hooks/exhaustive-deps
 
   const view = useMemo(() => {
-    const all = futureDetail(rows, base, 12)
-    const last = all.reduce((acc, m, i) => (m.cents > 0 ? i : acc), -1)
-    const future = all.slice(0, last + 1) // sem meses vazios no fim
-    const schedule = endingSchedule(rows, base)
-    return { future, schedule, remaining: future.reduce((s, m) => s + m.cents, 0) }
-  }, [rows, base])
+    const detail = (rs: typeof rows) => {
+      const all = futureDetail(rs, base, 12)
+      const last = all.reduce((acc, m, i) => (m.cents > 0 ? i : acc), -1)
+      return all.slice(0, last + 1) // sem meses vazios no fim
+    }
+    const every = detail(rows)
+    const byCard = groupSum(every.flatMap((m) => m.items), (i) => i.row.account_id ?? '', (i) => i.cents)
+    // com um cartão escolhido, recalcula tudo só com as compras dele
+    const scoped = cardFilter ? rows.filter((r) => (r.account_id ?? '') === cardFilter) : rows
+    const future = cardFilter ? detail(scoped) : every
+    const schedule = endingSchedule(scoped, base)
+    return { future, schedule, byCard, remaining: future.reduce((s, m) => s + m.cents, 0) }
+  }, [rows, base, cardFilter])
+  // se o cartão escolhido não tem mais parcela nesse mês de partida, volta para "Todos"
+  useEffect(() => { if (cardFilter && !view.byCard.some((c) => c.key === cardFilter)) setCardFilter(null) }, [view.byCard, cardFilter])
 
   if (loading || !billsReady) return <PageSkeleton />
   if (!months.length) return <p className="text-zinc-400">Importe uma fatura para ver as parcelas.</p>
 
-  const withFixed = anyFixed && !cardsOnly
+  const withFixed = anyFixed && !cardsOnly && !cardFilter
   // cartões que ainda têm parcela futura (cores iguais às do Resumo) + contas fixas
   const cardIds = [...new Set(view.future.flatMap((m) => m.items.map((i) => i.row.account_id ?? '')))]
   const series: Series[] = [
@@ -74,6 +86,24 @@ export default function Installments() {
         description={`O que já está parcelado nas faturas de ${monthLabel(base)} e ainda vai cair nos próximos meses. Compras novas ainda não entram.`}
         actions={<MonthSwitcher value={base} onChange={setBase} options={months} label="Projetar a partir da fatura de" />} />
 
+      {view.byCard.length > 1 && (
+        <div className="flex flex-wrap items-center gap-2" role="group" aria-label="Filtrar por cartão">
+          <span className="text-sm text-zinc-400">Cartão</span>
+          <button type="button" aria-pressed={cardFilter === null} onClick={() => setCardFilter(null)}
+            className={`chip min-h-9 cursor-pointer px-3 ${cardFilter === null ? 'border-emerald-500 bg-emerald-500/15 text-zinc-100' : 'hover:bg-zinc-800'}`}>Todos</button>
+          {view.byCard.map((c) => {
+            const card = cardStyle(accounts, c.key || null)
+            const on = cardFilter === c.key
+            return (
+              <button key={c.key} type="button" aria-pressed={on} onClick={() => setCardFilter(on ? null : c.key)}
+                className={`chip min-h-9 cursor-pointer px-3 ${on ? 'border-emerald-500 bg-emerald-500/15 text-zinc-100' : 'hover:bg-zinc-800'}`}>
+                <Dot color={card.color} />{card.name} <span className="tabular-nums text-zinc-400">{brl(c.cents)}</span>
+              </button>
+            )
+          })}
+        </div>
+      )}
+
       {!view.future.length ? (
         <p className="card text-sm text-zinc-400">Nenhuma parcela futura nas faturas deste mês. ✓</p>
       ) : (
@@ -92,7 +122,7 @@ export default function Installments() {
                 {marker ? `; a linha branca é a renda de ${monthLabel(base)}` : ''}.
               </p>
               <div className="flex flex-col gap-1.5">
-                {anyFixed && (
+                {anyFixed && !cardFilter && (
                   <label className="flex cursor-pointer items-center gap-2 text-xs text-zinc-400">
                     <input type="checkbox" className="size-4 accent-emerald-500" checked={cardsOnly} onChange={(e) => toggleCardsOnly(e.target.checked)} />
                     Mostrar apenas cartões
