@@ -114,3 +114,29 @@ describe('Banco do Brasil', () => {
     ])
   })
 })
+
+// Cresol, coluna direita: descrição ACIMA da data e parcela ABAIXO; cidade (x>=440) nunca entra no nome; "DL" + "*Uber*RidesV" vêm quebrados
+const cresolRight: PdfPage[] = [
+  { items: [t(100, 700, 'CRESOL TESTE'), t(100, 690, 'VENCIMENTO'), t(200, 690, '7 SET 2026'), t(100, 600, 'SALDO TOTAL'), t(200, 600, '= 1.000,00'), t(21, 755, 'LANÇAMENTOS - CRESOL MASTERCARD'),
+    t(305, 717, '07 AGO'), t(345, 717, 'PETZ DIGITALV'), t(458, 717, 'EMBU'), t(517, 717, 'R$ 117,85'),
+    t(345, 703, 'MERCADO*MERCADOLIVRE'),
+    t(305, 699, '07 AGO'), t(452, 699, 'CAJAMAR'), t(519, 699, 'R$ 46,00'),
+    t(345, 695, '01/04'),
+    t(305, 681, '08 AGO'), t(345, 681, 'DL'), t(362, 681, '*Uber*RidesV'), t(452, 681, 'Sao Paulo'), t(519, 681, 'R$ 33,98'),
+    t(305, 609, '08 AGO'), t(345, 609, 'IMAGINARIUM'), t(409, 609, '01/02'), t(453, 609, 'SAO LUIS'), t(519, 609, 'R$ 89,95'),
+    t(345, 590, 'SHOPEE *CENTRALBENIT'),
+    t(305, 586, '17 AGO'), t(449, 586, 'SAO PAULO'), t(517, 586, 'R$ 219,61'),
+    t(345, 582, '01/10')] },
+]
+describe('Cresol: descrição da coluna direita', () => {
+  it('não usa a cidade como nome e lê parcela de linha separada', () => {
+    const r = parseInvoice(cresolRight, 2026)
+    expect(r.txs.map((x) => [x.description, x.amount_cents, x.installment_no, x.installment_total])).toEqual([
+      ['PETZ DIGITALV', 11785, null, null],
+      ['MERCADO*MERCADOLIVRE', 4600, 1, 4],
+      ['DL*Uber*RidesV', 3398, null, null],
+      ['IMAGINARIUM', 8995, 1, 2],
+      ['SHOPEE *CENTRALBENIT', 21961, 1, 10],
+    ])
+  })
+})
