@@ -512,3 +512,25 @@ describe('máscaras de entrada', () => {
     expect(maskDay('1a2')).toBe('12')
   })
 })
+
+import { projectMonth } from '../src/lib/projection'
+describe('projeção do mês', () => {
+  const cards = [{ id: 'a', name: 'Cresol' }, { id: 'b', name: 'Santander' }, { id: 'c', name: 'Nubank' }]
+  it('soma parcelas, total informado e fixas contra a renda', () => {
+    const p = projectMonth({ cards, installmentsByCard: { a: 100000, b: 50000 }, informedByCard: { a: 250000, b: 40000 }, fixed: 300000, income: 1000000 })
+    const [a, b, c] = p.cards
+    expect(a).toMatchObject({ installments: 100000, informed: 250000, fresh: 150000, total: 250000 })
+    expect(b).toMatchObject({ fresh: 0, total: 50000 }) // informado menor que as parcelas: vale o das parcelas
+    expect(c).toMatchObject({ installments: 0, informed: null, fresh: 0, total: 0 })
+    expect(p.cardsTotal).toBe(300000)
+    expect(p.committed).toBe(600000)
+    expect(p.free).toBe(400000)
+    expect(p.usedPct).toBe(60)
+    expect(p.fresh).toBe(150000)
+  })
+  it('sem renda: livre negativo e 0%', () => {
+    const p = projectMonth({ cards: [cards[0]], installmentsByCard: {}, informedByCard: { a: 1000 }, fixed: 500, income: 0 })
+    expect(p.free).toBe(-1500)
+    expect(p.usedPct).toBe(0)
+  })
+})

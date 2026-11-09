@@ -2,7 +2,7 @@
 import { useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { BarChart3, CalendarClock, CalendarDays, Layers, ListOrdered, LogOut, MoreHorizontal, PieChart, Plus, Rocket, Target, TrendingUp, TriangleAlert, Upload, X, type LucideIcon } from 'lucide-react'
+import { BarChart3, CalendarClock, CalendarDays, Gauge, Layers, ListOrdered, LogOut, MoreHorizontal, PieChart, Plus, Rocket, Target, TrendingUp, TriangleAlert, Upload, X, type LucideIcon } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { ThemeToggle } from '@/components/ThemeToggle'
 
@@ -10,7 +10,7 @@ interface Item { href: string; label: string; Icon: LucideIcon }
 const GROUPS: { label: string; items: Item[] }[] = [
   { label: 'Visão geral', items: [{ href: '/', label: 'Resumo', Icon: BarChart3 }, { href: '/analysis', label: 'Análise', Icon: PieChart }, { href: '/trends', label: 'Tendências', Icon: TrendingUp }] },
   { label: 'Movimentações', items: [{ href: '/transactions', label: 'Transações', Icon: ListOrdered }, { href: '/import', label: 'Importar', Icon: Upload }, { href: '/installments', label: 'Parcelas', Icon: Layers }] },
-  { label: 'Planejamento', items: [{ href: '/calendar', label: 'Calendário', Icon: CalendarDays }, { href: '/goals', label: 'Metas', Icon: Target }, { href: '/bills', label: 'Contas fixas', Icon: CalendarClock }] },
+  { label: 'Planejamento', items: [{ href: '/projection', label: 'Projeção', Icon: Gauge }, { href: '/calendar', label: 'Calendário', Icon: CalendarDays }, { href: '/goals', label: 'Metas', Icon: Target }, { href: '/bills', label: 'Contas fixas', Icon: CalendarClock }] },
   { label: 'Ajuda', items: [{ href: '/anomalies', label: 'Anomalias', Icon: TriangleAlert }, { href: '/start', label: 'Primeiros passos', Icon: Rocket }] },
 ]
 // o que fica fora da barra inferior do celular vai para a folha "Mais"
